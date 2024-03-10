@@ -1,0 +1,78 @@
+U0 (*old_wall_paper)(CTask *task);
+CDoc *wallpaper_doc;
+
+RegDefault("Wallpapers/Current", "1;\n");
+RegExe("Wallpapers/Current");
+
+Bool show_stats = FALSE;
+
+U0 WallPaperSet(I8 direction) {
+    CDirEntry *tmpde1;
+    // read the current wallpaper index from the registry
+    I64 current = RegExe("Wallpapers/Current");
+    I64 max = 0;
+
+    // SysLog("Reading current wallpaper index from registry: %d\n", current);
+
+    // search the wallpapers directory for .DD files
+    tmpde1 = FilesFind("~/Wallpapers/1024/*.DD", 1);
+    if (tmpde1) {
+        do {
+            max++;
+            tmpde1 = tmpde1->next;
+        } while (tmpde1);
+    }
+
+    // move to the next/previous wallpaper
+    current += direction;
+    if (current < 1)
+        current = max;  // wrap around to the end
+    if (current > max)
+        current = 1;  // wrap around to the start
+
+    // write the new current index back to the registry
+    RegWrite("Wallpapers/Current", "%d;\n", current);
+
+    // SysLog("Current: %d\n", current);
+    // Change the wallpaper
+    Sys("WallPaperDolDocInit(\"~/Wallpapers/1024/%d.DD\");\n", current);
+}
+
+U0 WallPaperToggle()
+{
+	if (Fs != sys_task)
+	{
+		"\nMust be ran as system";	
+		return;
+	}
+
+	show_stats = !show_stats;
+	if(show_stats)
+	    sys_winmgr_task->display_doc = old_wall_paper;
+	else
+	    sys_winmgr_task->display_doc = wallpaper_doc;
+}
+
+U0 WallPaperDolDocInit(I64 filepath="::/Home/Wallpapers/Default.DD")
+{
+    if (Fs != sys_task)
+    {
+        "\nMust be System Included. (SHIFT-F5 / RightClick->System Include) \n";
+        return;
+    }
+    old_wall_paper = gr.fp_wall_paper;
+    wallpaper_doc = DocRead(filepath, DOCF_DBL_DOLLARS | DOCF_NO_CURSOR);
+
+    sys_winmgr_task->display_doc = wallpaper_doc;
+    DocCursor(OFF, wallpaper_doc);
+    
+    // if (gr_palette[0] > gr_palette[15])
+    //   Fs->text_attr = WHITE << 4 + WHITE;
+    // else
+    //   Fs->text_attr = BLACK << 4 + BLACK;
+
+	
+    wallpaper_doc->win_task = sys_winmgr_task;
+
+    // gr.fp_wall_paper = &WallPaperDD;
+}

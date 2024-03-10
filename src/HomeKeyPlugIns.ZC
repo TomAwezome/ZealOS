@@ -110,6 +110,26 @@ Bool MyPutKey(I64 ch, I64 sc)
 						}
 						return TRUE;
 
+					case SC_F10:
+						if (!(sc & SCF_SHIFT))
+						{
+							if (sc & SCF_KEY_DESC)
+								KeyDescSet("Cmd /Previous Wallpaper");
+							else
+				                WallPaperSet(-1);
+						}
+						return TRUE;
+
+					case SC_F11:
+						if (!(sc & SCF_SHIFT))
+						{
+							if (sc & SCF_KEY_DESC)
+								KeyDescSet("Cmd /Next Wallpaper");
+							else
+				                WallPaperSet(1);
+						}
+						return TRUE;
+
 					case SC_DELETE:
 						if (sc & SCF_SHIFT)
 						{

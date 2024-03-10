@@ -34,7 +34,7 @@ U0 GrUpdateTaskWin(CTask *task)
 			if (gr.fp_wall_paper)
 				(*gr.fp_wall_paper)(task);
 		}
-		else if (!(task->win_inhibit & WIF_SELF_DOC))
+		/* else */ if (!(task->win_inhibit & WIF_SELF_DOC))
 			DocUpdateTaskDocs(task);
 		if (TaskValidate(task))
 		{

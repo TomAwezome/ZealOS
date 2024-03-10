@@ -8,6 +8,7 @@ Cd(__DIR__);;
 #include "~/HomeWrappers"
 MapFileLoad("::/Kernel/Kernel");
 MapFileLoad("::/Compiler/Compiler");
+#include "::/Demo/Graphics/WallPaperDolDoc"
 #include "~/HomeKeyPlugIns"
 #include "~/HomeSys"
 Cd("..");;
