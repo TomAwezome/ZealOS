@@ -711,7 +711,7 @@ U0 Fault2(I64 fault_num, I64 fault_err_code)
 {//Called from $LK,"Fault2",A="FF:::/Kernel/KInterrupts.ZC,Fault2"$.
 //$BK,1$Be careful not to swap-out and ruin the saved context$BK,0$
 	Bool was_raw, was_single_user, was_silent, was_in_debug, was_mouse_enabled;
-	I64  i, old_raw_flags = text.raw_flags;
+	I64  i, old_raw_flags;
 
 	was_single_user = SingleUser(ON);
 	if (!IsDebugMode)
@@ -723,6 +723,7 @@ U0 Fault2(I64 fault_num, I64 fault_err_code)
 		CallExtNum(EXT_DEBUG_RESUME, fault_num, fault_err_code);
 	else
 	{
+		old_raw_flags = text.raw_flags;
 		was_mouse_enabled = CallExtStr("MouseHardEnable", FALSE);
 		was_raw = Raw(ON);
 		was_silent = Silent(OFF);
