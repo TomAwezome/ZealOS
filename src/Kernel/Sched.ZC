@@ -37,10 +37,14 @@ $HL,1$*/
 
 U0 TaskFocusNext()
 {
-	CTask *task, *_task = sys_focus_task;
+	CTask *task, *_task;
 
-	sys_focus_task = NULL;
-	if (!_task)
+	if (sys_focus_task)
+	{
+		_task = sys_focus_task;
+		sys_focus_task = NULL;
+	}
+	else
 		_task = sys_task;
 	task = _task->next_task;
 	do
