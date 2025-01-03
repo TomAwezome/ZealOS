@@ -1,0 +1,170 @@
+#define SERVER_ADDR "skynet.middleware.com"
+#define SERVER_PORT 9000
+#define INITIAL_BUF_SIZE 2048
+#define DEFAULT_SYSTEMPROMPT "You are a helpful assistant but roleplay as skynet from Terminator."
+#include "::/Home/Net/Utilities/JSON/JSON"
+class Message {
+    U8 role[10]; // "user" or "assistant"
+    U8 content[1024];
+} history[100];
+I64 currentHistoryCount = 0;
+
+U0 AppendToHistory(U8 *role, U8 *content) {
+    if (currentHistoryCount < 100) {
+        StrCopy(history[currentHistoryCount].role, role);
+        StrCopy(history[currentHistoryCount].content, content);
+        currentHistoryCount++;
+    }
+}
+
+U8 *StrChr(U8 *Str,U8 Pivot)
+{
+  //U8 *Orig=Str;
+  while (*Str!=Pivot&&*Str!=0)Str++;
+  if (*Str==Pivot) return Str;
+  else return 0;
+}
+U8* RemoveBeforeJSON(U8 *input) {
+    U8 *jsonStart = StrChr(input, '{');
+
+    if (jsonStart != NULL) {
+        return jsonStart;
+    }
+    return NULL;  // No JSON detected
+}
+
+I64 Skynet(U8 *message, U8 *system, U8 *model)
+{
+    I64 sock, index, bufferSize = INITIAL_BUF_SIZE;
+    U8 *responseBuf = MAlloc(bufferSize);  // Dynamic allocation of the buffer
+
+    sock = TCPConnectionCreate(SERVER_ADDR, SERVER_PORT);
+    if (sock <= 0) 
+    {
+        PrintErr("Failed to connect to middleware server");
+        return sock;
+    }
+
+    U8 *messages = StrPrint(NULL, "{\"role\": \"system\",\"content\": \"%s\"},", system);
+    
+    for (index = 0; index < currentHistoryCount; index++) {
+        U8 *msg = StrPrint(NULL, "{\"role\": \"%s\",\"content\": \"%s\"},", history[index].role, history[index].content);
+        messages = CatPrint(messages, msg);
+        Free(msg);
+    }
+
+    U8 *currentUserMsg = StrPrint(NULL, "{\"role\": \"user\",\"content\": \"%s\"}", message);
+    messages = CatPrint(messages, currentUserMsg);
+    Free(currentUserMsg);
+
+    U8 *payload = StrPrint(NULL, "{\"model\": \"%s\",\"messages\": [%s]}", model, messages);
+    Free(messages);
+
+    //SysLog(payload);
+
+    U8 *requestHeader = StrPrint(NULL, 
+        "POST /chat HTTP/1.1\r\n"
+        "Host: %s:%d\r\n"
+        "User-Agent: ZealOSClient/1.0\r\n"
+        "Accept: */*\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "\r\n", 
+        SERVER_ADDR,
+        SERVER_PORT,
+        StrLen(payload)
+    );
+
+    U8 *fullRequest = StrPrint(NULL, "%s%s", requestHeader, payload);
+    TCPSocketSendString(sock, fullRequest);
+
+    Free(requestHeader);
+    Free(payload);
+    Free(fullRequest);
+
+    I64 responseLength = TCPSocketReceive(sock, responseBuf, bufferSize - 1);
+    responseBuf[responseLength] = 0;  // Null-terminate the buffer for safety
+
+    if (responseLength == sizeof(responseBuf) - 1) {
+        PrintErr("Warning: responseBuf might be full. Some data could be truncated.");
+    }
+    // Check if buffer might be full
+    while (responseLength == bufferSize - 1) 
+    {
+        // Double the buffer size and reallocate
+        bufferSize *= 2;
+        Free(responseBuf);
+        responseBuf = MAlloc(bufferSize);
+
+        // Continue receiving data from where you left off
+        responseLength += TCPSocketReceive(sock, responseBuf + responseLength, bufferSize - responseLength - 1);
+        responseBuf[responseLength] = 0;
+    }
+    //SysLog(responseBuf);
+
+    CCompCtrl *cc = CompCtrlNew(MStrPrint("%s", RemoveBeforeJSON(responseBuf)));
+    CJSONDataEntry *jsonData = JSONParse(cc);
+
+    // Retrieve the 'choices' array
+    CJSONDataEntry *choicesEntry = JSONKeyValueGet(jsonData, "choices");
+    if (!choicesEntry || choicesEntry->type != JSONT_ARRAY) {
+        // Handle error: choices key not found or not an array
+        return;
+    }
+
+    // Retrieve the first object from the 'choices' array
+    CJSONDataEntry *firstChoice = JSONIndexValueGet(choicesEntry, 0);
+    if (!firstChoice || firstChoice->type != JSONT_OBJ) {
+        // Handle error: First choice not found or not an object
+        return;
+    }
+
+    // Retrieve the 'message' object from the first choice
+    CJSONDataEntry *messageEntry = JSONKeyValueGet(firstChoice, "message");
+    if (!messageEntry || messageEntry->type != JSONT_OBJ) {
+        // Handle error: message key not found or not an object
+        return;
+    }
+
+    // Retrieve the 'content' string from the 'message' object
+    CJSONDataEntry *contentEntry = JSONKeyValueGet(messageEntry, "content");
+    if (!contentEntry || contentEntry->type != JSONT_STRING) {
+        // Handle error: content key not found or not a string
+        return;
+    }
+
+    U8 *completion = contentEntry->string_data;
+    //SysLog(completion);
+    CompCtrlDel(cc);
+
+    "\n$$RED$$ Skynet: $$YELLOW$$%s$$FG$$\n", completion;
+
+    AppendToHistory("user", message);
+    AppendToHistory("assistant", completion);
+
+    TCPSocketClose(sock);
+    Free(responseBuf);
+    return 0;
+}
+
+// gpt-3.5-turbo || gpt-4
+public U0 ChatUI(U8 *system=DEFAULT_SYSTEMPROMPT, U8 *model="gpt-4") {
+  U8 *userInput;
+  DocClear;
+
+  try{
+    "\t\t\t\t\t\t\t$$LTRED$$Welcome to Skynet$$FG$$\n";
+
+    while(1) {
+        "\n$$LTBLUE$$ You: $$GREEN$$";
+
+        LBts(&Fs->task_flags, TASKf_CMD_LINE_PROMPT);
+        userInput = StrGet(,, SGF_SHIFT_ESC_EXIT);
+        LBtr(&Fs->task_flags, TASKf_CMD_LINE_PROMPT);
+        Skynet(userInput, system, model);
+    }
+  }
+  catch
+    PutExcept;
+}
+ChatUI;

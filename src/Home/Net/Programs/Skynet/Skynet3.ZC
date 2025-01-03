@@ -1,0 +1,73 @@
+#define SERVER_ADDR "skynet.middleware.com"
+#define SERVER_PORT 9000
+
+// GPT2 - GPT3 version
+U8* ExtractGPTCompletion(U8 *response) {
+    U8 *start = StrFind("\"text\": \"", response);
+    if (!start) {
+        return NULL;  // Pattern not found
+    }
+
+    start += 10;  // Move pointer after '"text": "'
+
+    U8 *end = StrFind("\",", start);  // Find the closing double quote
+    if (!end) {
+        return NULL;
+    }
+
+    *end = 0;  // Null terminate the completion string
+
+    return start;
+}
+
+public I64 Skynet3(U8 *prompt)
+{
+    U8 responseBuf[8192];
+    I64 sock;
+
+    sock = TCPConnectionCreate(SERVER_ADDR, SERVER_PORT);
+    if (sock <= 0) 
+    {
+        PrintErr("Failed to connect to middleware server");
+        return sock;
+    }
+
+    U8 *payload = StrPrint(NULL, "{\"model\": \"text-davinci-003\",\"prompt\": \"%s\",\"max_tokens\": 100,\"temperature\": 1}", prompt);
+    U8 *requestHeader = StrPrint(NULL, 
+        "POST /gpt3 HTTP/1.1\r\n"
+        "Host: %s:%d\r\n"
+        "User-Agent: ZealOSClient/1.0\r\n"
+        "Accept: */*\r\n"
+        "Content-Type: application/json\r\n"
+        "Content-Length: %d\r\n"
+        "\r\n", 
+        SERVER_ADDR,
+        SERVER_PORT,
+        StrLen(payload)
+    );
+    U8 *fullRequest = StrPrint(NULL, "%s%s\n\n", requestHeader, payload);
+
+    TCPSocketSendString(sock, fullRequest);
+    Free(requestHeader);
+    Free(payload);
+    Free(fullRequest);
+
+
+    I64 responseLength = TCPSocketReceive(sock, responseBuf, sizeof(responseBuf) - 1); // -1 to ensure space for null terminator
+
+    responseBuf[responseLength] = 0;  // Null-terminate the response
+    
+    // Assuming the headers and payload are separated by two newline sequences (standard HTTP)
+    U8 *jsonPayload = StrFind("\r\n\r\n", responseBuf);
+    if (!jsonPayload) {
+        TCPSocketClose(sock);
+        return -1;  // or some error code
+    }
+    jsonPayload += 4;  // Move past the header separator
+
+    U8 *completion = ExtractGPTCompletion(jsonPayload);
+    Print("$$RED$$Skynet: $$YELLOW$$%s$$FG$$\n", completion);
+
+    TCPSocketClose(sock);
+    return 0;
+}

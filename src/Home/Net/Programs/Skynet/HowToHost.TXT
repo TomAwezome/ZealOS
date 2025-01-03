@@ -1,0 +1,51 @@
+// This is an NGINX reverse proxy configuration file for the Skynet Middleware
+
+server {
+    // set whatever port you'd like
+    listen 9000;
+    // replace the server name with yours
+    server_name skynet.middleware.com;
+
+    # Custom log locations
+    access_log /var/log/nginx/skynet_access.log;
+    error_log /var/log/nginx/skynet_error.log;
+
+    location /gpt3 {
+        proxy_pass https://api.openai.com/v1/completions; # GPT-3 endpoint
+
+        # Required for SSL verification with the upstream server (OpenAI)
+        proxy_ssl_server_name on;
+        proxy_ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        proxy_ssl_session_reuse off;
+
+        # Headers for OpenAI
+        // replace the sk-XXXX with your API key
+        proxy_set_header Authorization "Bearer sk-XXXX";
+        proxy_set_header Content-Type "application/json";
+
+        # Standard proxy headers
+        proxy_set_header Host api.openai.com;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /chat {
+        proxy_pass https://api.openai.com/v1/chat/completions; # ChatGPT endpoint
+
+        # Required for SSL verification with the upstream server (OpenAI)
+        proxy_ssl_server_name on;
+        proxy_ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        proxy_ssl_session_reuse off;
+
+        # Headers for OpenAI
+        // replace the sk-XXXX with your API key
+        proxy_set_header Authorization "Bearer sk-XXXX";                                                            
+        proxy_set_header Content-Type "application/json";                                                                                                       
+                                                                                                                                                                
+        # Standard proxy headers                                                                                                                                
+        proxy_set_header Host api.openai.com;                                                                                                                   
+        proxy_set_header X-Real-IP $remote_addr;                                                                                                                
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;                                                                                            
+    }                                                                                                                                                           
+                                                                                                                                                                
+}    
