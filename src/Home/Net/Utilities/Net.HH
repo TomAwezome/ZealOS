@@ -8,9 +8,11 @@
 #define FCS_LENGTH					4
 
 /*	Ethernet Frame Size.
-	Linux uses 1544, OSDev and Shrine use 1548. Based on IEEE 802.3as, max frame size was agreed upon as 2000 bytes. */
-#define ETHERNET_FRAME_SIZE	2000
-
+	Based on IEEE 802.3 layer 1 Ethernet Max Frame is 1542 according to wiki. 72-1530 frame octet + 12 IPG octet
+	Default: 1538 | Vlan: 1542 | Jumbo: 9038 | JumboVlan: 9042 */
+#define ETHERNET_FRAME_SIZE     1542
+  
+// Max PayLoad standard: 1500 | Jumbo: 9000 for Gignet (fiber)
 #define ETHERNET_v2_MTU 1500
 
 #define HTYPE_ETHERNET	1

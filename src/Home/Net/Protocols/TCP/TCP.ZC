@@ -101,7 +101,7 @@ I64 TCPPacketAllocate(U8 **frame_out,
 	header->ack_num				= EndianU32(ack_num);
 	header->data_offset			= (sizeof(CTCPHeader) / 4) << 4; // ???
 	header->flags				= flags;
-	header->window_size			= EndianU16(TCP_WINDOW_SIZE / 2);// TODO: What is window size supposed to be ?
+	header->window_size			= EndianU16(WINDOW_SIZE);// Window Size allocation data. Adjusted based on receive window. 
 	header->checksum			= 0;
 	header->urgent_pointer		= 0;
 
@@ -647,8 +647,8 @@ CTCPSocket TCPSocket(U16 domain=AF_UNSPEC)
 	QueueInit(accept_queue); // init pending connection queue
 	tcp_socket->accept_queue = accept_queue;
 
-	tcp_socket->receive_buffer_size = TCP_WINDOW_SIZE;
-	tcp_socket->receive_buffer = CAlloc(TCP_WINDOW_SIZE);
+	tcp_socket->receive_buffer_size = RECEIVE_BUFFER;
+	tcp_socket->receive_buffer = CAlloc(RECEIVE_BUFFER);
 
 	tcp_socket->max_segment_size = TCP_MSS;
 
@@ -1057,7 +1057,7 @@ I64 TCPSocketConnect(CTCPSocket *tcp_socket, CSocketAddressStorage *address)
 	}
 
 	tcp_socket->connection_time = tS;
-	tcp_socket->receive_window	= TCP_WINDOW_SIZE;
+	tcp_socket->receive_window	= RECEIVE_WINDOW;
 
 	tcp_socket->state = TCP_STATE_SYN_SENT;
 	TCPSendFlags(tcp_socket, TCPF_SYN);
@@ -1165,7 +1165,7 @@ CTCPSocket *TCPSocketAccept(CTCPSocket *tcp_socket)
 
 	new_socket->next_recv_seq_num	= ++pending->segment_seq_num;
 	new_socket->connection_time		= tS;
-	new_socket->receive_window		= TCP_WINDOW_SIZE;
+	new_socket->receive_window		= RECEIVE_WINDOW;
 	new_socket->timeout				= tcp_socket->timeout;
 
 	temp_addr = &tcp_socket->source_address;
