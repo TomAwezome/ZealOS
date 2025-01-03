@@ -1,0 +1,75 @@
+U0 FontCycle(I8 direction)
+{
+    CDirEntry *tmpde1, *previous = NULL, *selected = NULL;
+	U8 selected_font;
+
+	I64 current_font = FileRead("~/FontBook/CurrentFont.TXT");
+	if (!current_font)
+	{
+		FileWrite("~/FontBook/CurrentFont.TXT", "Zeal", 4);
+	}
+
+	//I64 current_font = "Zeal";
+	//"$$LTBLUE$$current_font:\t%s$$FG$$\n", current_font;
+
+	if (direction == 0)
+	{
+		selected_font =	current_font;
+		goto load_current;
+	}
+	
+    tmpde1 = FilesFind("~/FontBook/Fonts/*.BIN", 1);
+    if (!tmpde1) return;
+
+    do { 
+        FileExtRemove(tmpde1->name);
+		//"found:\t\t\t%s\n", tmpde1->name;    
+        // Check if this is the current font
+        if (StrCompare(current_font, tmpde1->name) == 0) {
+            if (direction == 1) {
+                if (tmpde1->next) {
+                    selected = tmpde1->next;
+                } else {
+                    selected = FilesFind("~/FontBook/Fonts/*.BIN", 1); // Start from the first font if at the end
+                }
+            } else {
+                if (previous) {
+                    selected = previous;
+                } else {
+                    // Find the last font for the case where direction is -1 and we're at the start
+                    CDirEntry *temp = tmpde1;
+                    while (temp->next) {
+                        temp = temp->next;
+                    }
+                    selected = temp;
+                }
+            }
+            break; // Exit loop once the current font is found.
+        }
+
+        previous = tmpde1;
+        tmpde1 = tmpde1->next;
+    } while (tmpde1);
+
+    if (selected) {
+        FileExtRemove(selected->name);
+
+		selected_font = selected->name;
+        "\n$$YELLOW$$selected:\t\t%s$$FG$$\n", selected_font;
+		FileWrite("~/FontBook/CurrentFont.TXT", selected_font, StrLen(selected_font)+1);
+
+load_current:
+		U8 selected_path[0];
+		StrPrint(selected_path, "~/FontBook/Fonts/%s.BIN", selected_font);
+		//"%s\n", selected_path;
+        
+        U64 *new_font = FileRead(selected_path);
+		if (new_font) {
+    
+		    text.font = new_font;
+            Free(new_font);
+        }
+    }
+}
+
+//FontCycle(1);
