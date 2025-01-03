@@ -1,0 +1,10 @@
+public CBGR24 gr_palette_catmacchiato[COLORS_NUM] = {
+0x6E738D, 0x8AADF4, 0xA6DA95, 0xF0C6C6, 0xED8796, 0xC6A0F6, 0xF5A97F, 0x494D64, 0x5B6078, 0x91D7E3, 0x8BD5CA, 0xF4DBD6, 0xEE99A0, 0xB7BDF8, 0xEED49F, 0x24273A
+};
+public U0 PaletteSetCatMacchiato(Bool persistent=TRUE)
+{
+    GrPaletteSet(gr_palette_catmacchiato);
+    LFBFlush;
+    if (persistent)
+        fp_set_std_palette = &PaletteSetCatMacchiato;
+}

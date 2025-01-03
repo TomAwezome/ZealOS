@@ -1,0 +1,10 @@
+public CBGR24 gr_palette_catmocha[COLORS_NUM] = {
+0x6C7086, 0x89B4FA, 0xA6E3A1, 0xF2CDCD, 0xF38BA8, 0xCBA6F7, 0xFAB387, 0x45475A, 0x585B70, 0x89DCEB, 0x94E2D5, 0xF5E0DC, 0xEBA0AC, 0xB4BEFE, 0xF9E2AF, 0x1E1E2E
+};
+public U0 PaletteSetCatMocha(Bool persistent=TRUE)
+{
+    GrPaletteSet(gr_palette_catmocha);
+    LFBFlush;
+    if (persistent)
+        fp_set_std_palette = &PaletteSetCatMocha;
+}

@@ -1,0 +1,10 @@
+public CBGR24 gr_palette_catlatte[COLORS_NUM] = {
+0x9CA0B0, 0x1E66F5, 0x40A02B, 0xDD7878, 0xD20F39, 0x8839EF, 0xFE640B, 0xBCC0CC, 0xACB0BE, 0x04A5E5, 0x179299, 0xDC8A78, 0xE64553, 0x7287FD, 0xDF8E1D, 0xEFF1F5
+};
+public U0 PaletteSetCatLatte(Bool persistent=TRUE)
+{
+    GrPaletteSet(gr_palette_catlatte);
+    LFBFlush;
+    if (persistent)
+        fp_set_std_palette = &PaletteSetCatLatte;
+}

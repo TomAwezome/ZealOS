@@ -1,0 +1,10 @@
+public CBGR24 gr_palette_catfrappe[COLORS_NUM] = {
+0x737994, 0x8CAAEE, 0xA6D189, 0xEEBEBE, 0xE78284, 0xCA9EE6, 0xEF9F76, 0x51576D, 0x626880, 0x99D1DB, 0x81C8BE, 0xF2D5CF, 0xEA999C, 0xBABBF1, 0xE5C890, 0x303446
+};
+public U0 PaletteSetCatFrappe(Bool persistent=TRUE)
+{
+    GrPaletteSet(gr_palette_catfrappe);
+    LFBFlush;
+    if (persistent)
+        fp_set_std_palette = &PaletteSetCatFrappe;
+}
