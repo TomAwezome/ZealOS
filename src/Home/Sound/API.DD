@@ -1,0 +1,102 @@
+
+
+	AC97 Functions:
+
+AudioInit
+AudioAvailableOutputStreamGet
+AudioSFXPlay
+AC97OutputMix
+AC97BufferFill
+AC97AudioProcess
+AC97Init
+AC97Task
+
+	AC97 Pci.ZC Functions:
+
+PCIInfoGet
+PCIGetCapability
+PCIInterruptReroute
+PCIInterruptHandlerRegister
+PCIInterruptHandler
+
+
+================================================
+
+	HDAudio MakeSnd Functions:
+
+SoundTaskEndCB
+
+	HDAudio SndMath Functions:
+
+Saw
+FullSaw
+Caw
+FullCaw
+Tri
+FullTri
+Note2Ona
+Ona2Note
+Ona2Octave
+SinPhaseCont
+SndWaveCtrlNew
+SndWaveCtrlDel
+SndWaveAddBuf
+
+	HDAudio SndMusic Functions:
+
+tM
+Beat
+MusicSetOctave
+MusicSetMeter
+MusicSetNoteLen
+Play
+MusicSettingsReset
+CurSongTask
+
+
+	HDAudio SndEffects Functions:
+
+SoundEffectEndTaskCB
+SoundEffectTask
+Noise
+Sweep
+
+
+	HDAudio SndFile Functions:
+
+SndFileCreate
+
+	HDAudio Functions:
+
+HDSyncCORB
+HDWriteCORB
+HDSyncRIRB
+HDReadRIRB
+HDWriteCORBSync
+HDTestCORBSync
+HDTraverse
+HDRun
+HDStop
+HDSnd
+HDFillBuf
+HDAudioTaskEndCB
+HDTonesInit
+HDAudioTask
+HDRst
+HDAudioEnd
+HDAudioUncachedInit
+HDAudioInit
+HDAudioScan
+
+	HDAudio Cfg Functions:
+
+HDCfgConnectList
+HDCfgTraverse
+HDCfgRandomizeXYZ
+HDCfgPopUpInfoTask
+HDCfgPopUpInfo
+HDCfgEdLink
+HDCfgSave
+HDCfg
+
+================================================

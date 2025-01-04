@@ -1,0 +1,240 @@
+
+#define INT_LAST_VALID_ENTRY	1 << 2
+#define INT_IOC					1 << 3
+#define INT_FIFO_ERR			1 << 4
+
+#define BDL_BUF_SIZE	2044
+#define MAX_BDLS		32
+
+#define PCM_BUF_SIZE	2048
+#define PCM_IN			0
+#define PCM_OUT			1
+#define MIC_IN			2
+
+// Native Audio Mixer registers (all U16)
+#define RESET			0x00	// Reset Register
+#define MASTER_VOL		0x02	// Set Master Output Volume
+#define MIC_VOL			0x0E	// Set Microphone Volume
+#define PCM_VOL			0x18	// Set Output Volume of PCM patterns
+#define REC_SLC			0x1A	// Select Input Device
+#define REC_GAIN		0x1C	// Set Input Gain
+#define MIC_GAIN		0x1E	// Set Gain of Microphone
+#define EXT_ID			0x28	// Supported extended functions
+#define EXT_CTRL		0x2A	// Enabling extended functions
+#define EXT_FRONT_RATE	0x2C	// Sample rate of front speaker
+
+// Native Audio Bus Master registers
+#define PCM_INPUT_REG_BOX	0x00	// NABM register box for PCM IN (sizeof NABM register box)
+#define PCM_OUTPUT_REG_BOX	0x10	// NABM register box for PCM OUT (sizeof NABM register box)
+#define MIC_INPUT_REG_BOX	0x20	// NABM register box for Microphone (sizeof NABM register box)
+#define GLOBAL_CTL			0x2C	// Global Control Register (U32)
+#define GLOBAL_STS			0x30	// Global Status Register (U32)
+
+// NABM register box registers
+#define BUFFER_DSC_ADDR			0x00	// Physical Address of Buffer Descriptor List (U32)
+#define CUR_ENTRY_VAL			0x04	// Number of Actual Processed Buffer Descriptor Entry (U8)
+#define LAST_VALID_ENTRY		0x05	// Number of all Descriptor Entries (U8)
+#define TRANSFER_STS			0x06	// Status of Transferring Data (U16)
+#define CUR_IDX_PROC_SAMPLES	0x08	// Number of Transferred Samples in Actual Processed Entry (U16)
+#define PRCSD_ENTRY				0x0A	// Number of Actual Processed Buffer Entry (U8)
+#define BUFFER_CNT				0x0B	// Most Important Register for controlling Transfers (U8)
+
+class CAC97BufferDescriptorListEntry
+{
+	U32 addr;
+	U16 length;	// length - 1
+	U16 flags;
+};
+
+class CAC97BufferDescriptorList
+{
+	CAC97BufferDescriptorListEntry entries[32];
+};
+
+class CAC97
+{
+	CPCIInfo pci;
+	CAC97BufferDescriptorList *bdl[3];
+	U16 nam;
+	U16 nabm;
+};
+
+CAC97 ac97;
+
+#define AUDIO_MAX_STREAMS 16
+#define AUDIO_OUTPUT_BUFFER_SIZE 1024
+#define AUDIO_STREAM_FIFO_SIZE 1048576 * 16
+#define AUDIO_STREAM_TYPE_INPUT 0
+#define AUDIO_STREAM_TYPE_OUTPUT 1
+
+class CAudioStream
+{
+	CFifoI64 *data;
+};
+
+class CAudio
+{
+	CAudioStream output[AUDIO_MAX_STREAMS];
+	I64 output_frames[AUDIO_MAX_STREAMS];
+};
+
+CAudio audio;
+
+U0 AudioInit()
+{
+	I64 i = 0;
+	for (i = 0; i < AUDIO_MAX_STREAMS; i++)
+		audio.output[i].data = FifoI64New(AUDIO_STREAM_FIFO_SIZE, sys_task);
+}
+
+AudioInit;
+
+I64 AudioAvailableOutputStreamGet()
+{
+	I64 stream = 0;
+	while (FifoI64Count(audio.output[stream].data))
+		stream++;
+	if (stream > AUDIO_MAX_STREAMS - 1)
+		return -1;
+	return stream;
+}
+
+I64 AudioSFXPlay(U32 *data, I64 length)
+{
+	I64 i;
+	I64 stream = AudioAvailableOutputStreamGet;
+	if (stream < 0)
+		return stream;
+	for (i = 0; i < length; i++)
+		FifoI64Ins(audio.output[stream].data, data[i]);
+	return stream;
+}
+
+U0 AC97OutputMix(U32 *buf, I64 length = NULL)
+{
+	I64 i;
+	I64 j;
+	I64 acc_sample_L = 0;
+	I64 acc_sample_R = 0;
+	I64 acc_streams = 0;
+	U32 sample;
+
+	if (!length)
+		length = AUDIO_OUTPUT_BUFFER_SIZE;
+	for (i = 0; i < length / 4; i++)
+	{
+		acc_sample_L = 0;
+		acc_sample_R = 0;
+		acc_streams = 0;
+
+		for (j = 0; j < AUDIO_MAX_STREAMS; j++)
+		{
+			if (FifoI64Count(audio.output[j].data))
+			{
+				FifoI64Remove(audio.output[j].data, &sample);
+				audio.output_frames[j]++;
+				acc_streams++;
+				acc_sample_L += sample.u16[0];
+				acc_sample_R += sample.u16[1];
+			}
+		}
+
+		buf[i].i16[0] = ToI64(acc_sample_L / Sqrt(acc_streams));
+		buf[i].i16[1] = ToI64(acc_sample_R / Sqrt(acc_streams));
+	}
+}
+
+U0 AC97BufferFill()
+{
+	I64 idx = InU8(ac97.nabm + PCM_OUTPUT_REG_BOX + LAST_VALID_ENTRY);
+	U32 *buf = ac97.bdl[PCM_OUT]->entries[idx].addr;
+	AC97OutputMix(buf, BDL_BUF_SIZE);
+	OutU8(ac97.nabm + PCM_OUTPUT_REG_BOX + LAST_VALID_ENTRY, ++idx);
+}
+
+U0 AC97AudioProcess()
+{
+	U16 status = InU16(ac97.nabm + PCM_OUTPUT_REG_BOX + TRANSFER_STS);
+	if (status & INT_IOC)
+	{
+		AC97BufferFill;
+		OutU16(ac97.nabm + PCM_OUTPUT_REG_BOX + TRANSFER_STS, 0x1C);
+	}
+}
+
+I64 AC97Init()
+{
+	I64 i;
+	I64 j;
+	// Scan for device
+	j = PCIClassFind(0x040100, 0);
+	if (j < 0)
+	{
+		device_not_found: SysLog("\n[AC'97] Device not found\n");
+		return -1;
+	}
+
+	PCIInfoGet(j, &ac97.pci);
+
+	if (ac97.pci.vendor_id != 0x8086 || ac97.pci.device_id != 0x2415)
+		goto device_not_found;
+
+	ac97.nam = ac97.pci.bar[0] &0xFFFFFF00;
+	ac97.nabm = ac97.pci.bar[1] &0xFFFFFF00;
+
+	// Enable port IO, disable MMIO
+	PCIWriteU8(j.u8[2], j.u8[1], j.u8[0], 0x4, 5);
+
+	OutU32(ac97.nabm + GLOBAL_CTL, 0x03);
+	OutU16(ac97.nam + RESET, 0xFFFF);
+
+	// Set PCM Output to Max volume
+	OutU16(ac97.nam + PCM_VOL, 0x0000);
+
+	// Allocate Buffer Descriptor Lists
+	ac97.bdl[PCM_IN] = CAllocAligned(sizeof(CAC97BufferDescriptorList), 4096, Fs->code_heap);
+	ac97.bdl[PCM_OUT] = CAllocAligned(sizeof(CAC97BufferDescriptorList), 4096, Fs->code_heap);
+	ac97.bdl[MIC_IN] = CAllocAligned(sizeof(CAC97BufferDescriptorList), 4096, Fs->code_heap);
+
+	for (i = 0; i < MAX_BDLS; i++)
+	{
+		ac97.bdl[PCM_OUT]->entries[i].addr =
+			CAllocAligned(PCM_BUF_SIZE, 4096, Fs->code_heap);
+		ac97.bdl[PCM_OUT]->entries[i].length = BDL_BUF_SIZE / 2;
+		ac97.bdl[PCM_OUT]->entries[i].flags = 1 << 15;
+	}
+
+	// Set addresses of Buffer Descriptor Lists
+	// OutU32(ac97.nabm + PCM_INPUT_REG_BOX + BUFFER_DSC_ADDR, ac97.bdl[PCM_IN]);
+	OutU32(ac97.nabm + PCM_OUTPUT_REG_BOX + BUFFER_DSC_ADDR, ac97.bdl[PCM_OUT]);
+	// OutU32(ac97.nabm + MIC_INPUT_REG_BOX + BUFFER_DSC_ADDR, ac97.bdl[MIC_IN]);
+
+	// Set Master Volume
+	OutU16(ac97.nam + MASTER_VOL, 0x0F0F);
+
+	// Stop playing sound
+	OutU8(ac97.nabm + PCM_OUTPUT_REG_BOX + BUFFER_CNT, 0);
+
+	// Fill one buffers
+	AC97BufferFill;
+
+	// Enable interrupt handler
+	//@pci_register_int_handler(&@ac97_int_handler);
+
+	// Start playing sound
+	OutU8(ac97.nabm + PCM_OUTPUT_REG_BOX + BUFFER_CNT, 1);
+
+	return 0;
+}
+
+U0 AC97Task()
+{
+	while (1)
+	{
+		AC97AudioProcess;
+		Sleep(1);
+	}
+}
+
+AC97Init;
+Spawn(&AC97Task,, "AC97 Task", 1);

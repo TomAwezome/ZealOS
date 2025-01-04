@@ -1,0 +1,5 @@
+Cd(__DIR__);
+
+SysFile("Sup1CodeScraps/Mem/Mem2Meg.ZC");
+SysFile("Sup1Snd/MakeSnd.ZC");
+SysFile("Sup1HDAudio/HDAudio.ZC");

@@ -1,5 +1,5 @@
 /*	AMD PCNetII Driver
-	Author: TomAwezome
+	Authors: ($TX,"minexew",HTML="https://github.com/minexew/"$), $TX,"TomAwezome",HTML="https://github.com/TomAwezome/"$, $TX,"TheTinkerer",HTML="https://github.com/tinkeros/"$
 
 	Driver is based on:
 	-	minexew's ShrineOS PCNet implementation
@@ -12,12 +12,6 @@
 	-	Understandability over LOC.
 	-	Clear documentation.
 */
-
-#define	PCNET_CMDf_IOEN	0
-#define	PCNET_CMDf_BMEN	2
-
-#define PCNET_CMDF_IOEN	(1 << PCNET_CMDf_IOEN)
-#define PCNET_CMDF_BMEN	(1 << PCNET_CMDf_BMEN)
 
 #define PCNET_WD_RESET	0x14 // reset reg location when card is in 16-bit mode
 
@@ -742,7 +736,7 @@ U0 PCNetInit()
 				pcnet.pci->dev,
 				pcnet.pci->fun,
 				PCIR_COMMAND,
-				PCNET_CMDF_IOEN | PCNET_CMDF_BMEN);
+				PCI_CMDF_IOEN | PCI_CMDF_BMEN);
 
 	PCNetReset;
 

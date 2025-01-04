@@ -2663,12 +2663,25 @@ class CSMBIOSBatteryInfo
 #define PCIR_MIN_GRANT			0x3E
 #define PCIR_MAX_LATENCY		0x3F
 
+// PCI Command Register bit flags
+#define	PCI_CMDf_IOEN	0	// I/O Space Enable
+#define	PCI_CMDf_MSEN	1	// Memory Space Enable
+#define	PCI_CMDf_BMEN	2	// Bus Master Enable
+#define PCI_CMDf_INTD	10	// Interrupt Disable
+
+#define PCI_CMDF_IOEN	(1 << PCI_CMDf_IOEN)
+#define	PCI_CMDF_MSEN	(1 << PCI_CMDf_MSEN)
+#define PCI_CMDF_BMEN	(1 << PCI_CMDf_BMEN)
+#define PCI_CMDF_INTD	(1 << PCI_CMDf_INTD)
+
 //PCI class codes
 #define PCIC_STORAGE	0x1
 #define PCIC_NETWORK	0x2
+#define PCIC_MULTIMEDIA	0x4
 
 //PCI subclass codes
 #define PCISC_ETHERNET	0x0
+#define PCISC_AUDIO		0x3
 #define PCISC_AHCI		0x6
 
 //PCI I/O ports

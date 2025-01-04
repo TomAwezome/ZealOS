@@ -69,14 +69,14 @@ U0 PCIWriteU32(I64 bus, I64 dev, I64 fun, I64 rg, I64 val)
 	}
 }
 
-
 U0 PCIWriteU8(I64 bus, I64 dev, I64 fun, I64 rg, I64 val)
 {//Write U8 in PCI configspace at bus, dev, fun, reg.
 	if (sys_pci_services)
 		PCIBIOSWriteU8(bus, dev, fun, rg, val);
 	else
 	{
-		PCIWriteU32(bus, dev, fun, rg, val & 0xFF);
+		val = PCIReadU32(bus, dev, fun, rg) & ~0xFF | val & 0xFF;
+		PCIWriteU32(bus, dev, fun, rg, val);
 	}
 }
 
@@ -86,7 +86,8 @@ U0 PCIWriteU16(I64 bus, I64 dev, I64 fun, I64 rg, I64 val)
 		PCIBIOSWriteU16(bus, dev, fun, rg, val);
 	else
 	{
-		PCIWriteU32(bus, dev, fun, rg, val & 0xFFFF);
+		val = PCIReadU32(bus, dev, fun, rg) & ~0xFFFF | val & 0xFFFF;
+		PCIWriteU32(bus, dev, fun, rg, val);
 	}
 }
 
