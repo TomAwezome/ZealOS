@@ -52,6 +52,7 @@
 #include "Job"
 #include "PCIBIOS"
 #include "PCI"
+#include "KUSB" // currently too far forward in #includes, doesn't precede keyboard/mouse code
 #include "MultiProc"
 #include "EdLite"
 #include "BlkDev/MakeBlkDev"
