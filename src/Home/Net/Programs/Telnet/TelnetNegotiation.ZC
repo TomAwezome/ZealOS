@@ -1,0 +1,202 @@
+#define IAC 0xFF
+#define WILL 0xFB
+#define WONT 0xFC
+#define DO 0xFD
+#define DONT 0xFE
+#define ECHO 0x01
+#define SUPPRESS_GO_AHEAD 0x03
+#define TERMINAL_TYPE 0x18
+#define LINEMODE 0x22
+#define NAWS 0x1F // (Negotiate About Window Size)
+#define IS 0x00
+#define SEND 0x01
+#define SB 0xFA
+#define SE 0xF0
+#define CHARSET 0x2A
+
+// #define TELNET_IAC 255  /* 0xff - Interpret as command */
+// #define TELNET_DONT 254 /* 0xfe - Don't do option */
+// #define TELNET_DO 253   /* 0xfd - Do option */
+// #define TELNET_WONT 252 /* 0xfc - Won't do option */
+// #define TELNET_WILL 251 /* 0xfb - Will do option */
+
+// #define TELNET_SB 250   /* 0xfa - sub-negotiation */
+// #define TELNET_GA 249   /* 0xf9 - Go ahead */
+// #define TELNET_EL 248   /* 0xf8 - Erase line */
+// #define TELNET_EC 247   /* 0xf7 - Erase char */
+// #define TELNET_AYT 246  /* 0xf6 - Are you there? */
+// #define TELNET_AO 245   /* 0xf5 - Abort output */
+// #define TELNET_IP 244   /* 0xf4 - Interrupt process */
+// #define TELNET_BRK 243  /* 0xf3 - Break */
+// #define TELNET_SYNC 242 /* 0xf2 - Data mark */
+// #define TELNET_NOP 241  /* 0xf1 - No operation */
+#define SE_END 240
+
+// #define TELNET_NAWS 31
+// #define TELNET_TERMINAL_TYPE 24
+#define SEND_LOCATION 23 
+#define BINARY_TRANSMISSION 0
+
+
+
+// U0 TelnetRequest(I64 sock, U8 option_code)
+// {
+//   U8 request[3];
+//   request[0] = IAC;
+//   request[1] = WILL;
+//   request[2] = option_code;
+
+//   TCPSocketSend(sock, request, 3);
+// }
+U0 SendWindowSize(I64 sock, U16 cols, U16 rows)
+{
+  U8 buf[9];
+
+  buf[0] = IAC;
+  buf[1] = SB;
+  buf[2] = NAWS;
+  // if dynamic resolution, make sure to account for 255 AIC (byte stuffing needs to be done)
+  buf[3] = cols >> 8;   // High byte of columns
+  buf[4] = cols & 0xFF; // Low byte of columns
+  buf[5] = rows >> 8;   // High byte of rows
+  buf[6] = rows & 0xFF; // Low byte of rows
+  buf[7] = IAC;
+  buf[8] = SE;
+
+  SysLog("SendWindowSize: %d x %d\n", cols, rows);
+  TCPSocketSend(sock, buf, 9);
+}
+
+U0 SendTerminalType(I64 sock)
+{
+
+  U8 response[14];
+
+  response[0] = IAC;
+  response[1] = SB;
+  response[2] = TERMINAL_TYPE;
+  response[3] = IS;
+
+  response[4]  = 'A';
+  response[5]  = 'N';
+  response[6]  = 'S';
+  response[7]  = 'I';
+  response[8]  = '-';
+  response[9]  = 'B';
+  response[10] = 'B';
+  response[11] = 'S';
+
+  response[12] = IAC;
+  response[13] = SE;
+
+  SysLog("SendTerminalType: ANSI-BBS\n");
+  TCPSocketSend(sock, response, 14); 
+}
+
+U0 TelnetNegotiate(I64 sock, U8 *ptr)
+{
+  U8 negotiation_code = *(ptr + 1);
+  U8 option_code = *(ptr + 2);
+
+  
+  SysLog("Negotiation code: %d | Option code: %d\n", negotiation_code, option_code);
+
+  // Check if this is a subnegotiation request
+  if (negotiation_code == SB)
+  {
+    SysLog("SB: %d\n", option_code);
+    if (option_code == TERMINAL_TYPE && *(ptr + 3) == SEND)
+    {
+      SendTerminalType(sock);
+    }
+    else if (option_code == NAWS && *(ptr + 3) == SEND)
+    {
+      SendWindowSize(sock, 80, 25);
+    }
+    return;
+  }
+
+  // Otherwise, handle it as a normal negotiation...
+  U8 response[3];
+  response[0] = IAC;
+  if (negotiation_code == DO || negotiation_code == DONT)
+  {
+    if (option_code == ECHO)
+    {
+      if (negotiation_code == DO || negotiation_code == WILL)
+      {
+        response[1] = WILL;
+      }
+      else
+      {
+        response[1] = WONT;
+      }
+    }
+    else if (option_code == SUPPRESS_GO_AHEAD)
+    {
+      if (negotiation_code == DO)
+      {
+        response[1] = WILL;
+      }
+      else
+      {
+        response[1] = WONT;
+      }
+    }
+    else if (option_code == TERMINAL_TYPE)
+    {
+      SysLog("TERMINAL_TYPE negotiation\n");
+      if (negotiation_code == DO)
+      {
+        SysLog("TERMINAL_TYPE WILL\n");
+        response[1] = WILL;
+      }
+      else
+      {
+        SysLog("TERMINAL_TYPE WONT\n");
+        response[1] = WONT;
+      }
+    }
+    else if (option_code == NAWS)
+    {
+      SysLog("NAWS negotiation\n");
+      if (negotiation_code == DO || negotiation_code == WILL)
+      {
+        SysLog("NAWS WILL\n");
+        response[1] = WILL;
+      }
+      else
+      {
+        SysLog("NAWS WONT\n");
+        response[1] = WONT;
+      }
+    }
+    else if (option_code == LINEMODE)
+    {
+      if (negotiation_code == DO)
+      {
+        response[1] = WILL;
+      }
+      else
+      {
+        response[1] = WONT;
+      }
+    }
+    else
+    {
+      response[1] = WONT;
+    }
+  }
+  else
+  {
+    response[1] = WONT;
+  }
+
+  response[2] = option_code;
+  TCPSocketSend(sock, response, 3);
+  // if (option_code == NAWS && negotiation_code == DO)
+  // {
+  //   SysLog("Sending NAWS right away\n");
+  //   SendWindowSize(sock, 80, 25);
+  // }
+}

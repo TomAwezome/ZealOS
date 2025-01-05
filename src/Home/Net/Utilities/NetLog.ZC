@@ -1,4 +1,5 @@
 CTask *net_log_task = NULL;
+Bool net_log_enabled = TRUE;
 
 U0 NetLogSave()
 {
@@ -8,6 +9,7 @@ U0 NetLogSave()
 
 U0 NetLogInit()
 {
+    if (!net_log_enabled) return;
 	net_log_task = Spawn(&ServerCmdLine, NULL, "Network Log");
 	TaskWait(net_log_task);
 
@@ -27,6 +29,19 @@ U0 NetLogInit()
 	Bts(&net_log_task->win_inhibit, WIf_SELF_FOCUS);
 }
 
+U0 NetLogToggle() {
+	if (Fs != sys_task)
+	{
+		"\nMust be ran as system";	
+		return;
+	}
+    net_log_enabled = !net_log_enabled;
+	if(!net_log_enabled)
+		Kill(net_log_task);
+	else
+		NetLogInit;
+}
+
 U0 NetLogBottom()
 {//Move cursor, cur_entry, to bottom.
 	Bool unlock;
@@ -41,6 +56,7 @@ U0 NetLogBottom()
 
 U0 NetLog(U8 *format, ...)
 { // Output text to NetLogTask as Log.
+    if (!net_log_enabled) return;
 	U8 *buf = StrPrintJoin(NULL, format, argc, argv);
 
 	NetLogBottom;
@@ -52,6 +68,7 @@ U0 NetLog(U8 *format, ...)
 
 U0 NetWarn(U8 *format, ...)
 { // Output text to NetLogTask as Warning.
+    if (!net_log_enabled) return;
 	U8 *buf = StrPrintJoin(NULL, format, argc, argv);
 
 	NetLogBottom;
@@ -63,6 +80,7 @@ U0 NetWarn(U8 *format, ...)
 
 U0 NetErr(U8 *format, ...)
 { // Output text to NetLogTask as Error.
+    if (!net_log_enabled) return;
 	U8 *buf = StrPrintJoin(NULL, format, argc, argv);
 
 	NetLogBottom;
@@ -74,6 +92,7 @@ U0 NetErr(U8 *format, ...)
 
 U0 NetDebug(U8 *format, ...)
 { // Output text to NetLogTask as Debug.
+    if (!net_log_enabled) return;
 	U8 *buf = StrPrintJoin(NULL, format, argc, argv);
 
 	NetLogBottom;

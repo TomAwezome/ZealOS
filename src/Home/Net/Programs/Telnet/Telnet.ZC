@@ -1,0 +1,491 @@
+// Telnet client for ZealOS by y4my4m
+// Public Domain
+
+Cd(__DIR__);;
+
+#define TELNET_PORT 23
+// #define BUF_SIZE 8192 // way too big?
+#define BUF_SIZE 819200 // way too big?
+#define INPUT_BUF_SIZE 32
+#define TIMEOUT_DURATION 500000
+
+#define NEGOTIATE 0xFF
+
+#define ANSI_ESC 0x1B
+#define ANSI_CSI 0x5B // [
+
+#define MAX_ANSI_PARAMS 32
+
+#include "TelnetClass"
+#include "TelnetHelpers"
+#include "TelnetANSI"
+
+// If you're using a custom palette, the colors might not seem right.
+CBGR24 original_palette[COLORS_NUM];
+Bool dark_mode = TRUE; // since ZealOS is dark by default
+Bool original_colors = FALSE;
+Bool force_disconnect = FALSE;
+
+I64 TelnetOpen(U8 *host, U16 port) {
+  I64 sock;
+
+  if (host == NULL) {
+    return -1;
+  }
+  DocPrint(term.doc, "$$GREEN$$Connecting to %s:%d.$$FG$$$$BG$$\n", host, port);
+  sock = TCPConnectionCreate(host, port);
+  if (sock <= 0) {
+    // PrintErr("Failed to connect to %s:%d\n", host, port);
+    PopUpOk("\n\n\tFailed to connect\n\n");
+    return sock;
+  }
+
+	// sock(CTCPSocket *)->timeout = 0;
+	// sock(CTCPSocket *)->timeout = TCP_TIMEOUT;
+  return sock;
+}
+
+U0 TermBottom()
+{
+	Bool unlock;
+	CDoc *doc = term.doc;
+
+	unlock = DocLock(doc);
+	doc->cur_entry = doc;
+	doc->cur_col = 0;
+	if (unlock)
+		DocUnlock(doc);
+}
+
+U0 HandleControlCodes(U8 ch) {
+  if (ch < 32) { // ASCII code below 32 (control character)
+    switch (ch) {
+      case 0: // NUL (Null) - Typically ignored
+        break;
+      case 7: // BEL (Bell)
+        Beep;
+        break;
+      case 8: // BS (Backspace)
+        DocPrint(term.doc, "$$CM,-1,0$$");
+        break;
+      case 9: // HT (Horizontal Tab)
+        DocPrint(term.doc, "$$CM,8,0$$");
+        break;
+      case 10: // LF (Line Feed)
+        // DocPrint(term.doc, "\n");
+        break;
+      case 11: // VT (Vertical Tab)
+        SysLog("Vertical Tab\n");
+        break;
+      case 12: // FF (Form Feed)
+        // SysLog("form feed\n");
+        DocClear(term.doc);
+        // DocPrint(term.doc, "\f");
+        break;
+      case 13: // CR (Carriage Return)
+        // DocPrint(term.doc, "\r");
+        DocPrint(term.doc, "$$CM+LX+PRY,LE=0,RE=1$$");
+        break;
+      case 14: // SO (Shift Out) - Switch to an alternate character set
+      case 15: // SI (Shift In)  - Switch back to the default character set
+        SysLog("Shift In/Out\n");
+        break;
+      case 22:
+        SysLog("Synchronous Idle\n");
+        break;
+      case 23:
+        SysLog("End of Transmission Block\n");
+        break;
+      case 24:
+        SysLog("Cancel\n");
+        break;
+      case 25:
+        SysLog("End of Medium\n");
+        break;
+      case 26:
+        SysLog("Sub\n");
+        break;
+      case 27:
+        SysLog("Esc\n");
+        break;
+      case 28:
+        SysLog("Fs\n");
+        break;
+      case 29:
+        SysLog("Gs\n");
+        break;
+      case 30:
+        SysLog("Rs\n");
+        break;
+      case 31:
+        SysLog("Unit Separator\n");
+        break;
+      default:
+        // some ch make Zeal crash or behave weird because they're commands?
+        // SysLog("CC %c happened\n", ch);
+        SysLog("CC 0x%X happened\n", ch);
+        break;
+    }
+  } 
+  else {
+    if (ch == 127) {
+        SysLog("case 127");
+    }
+    if (ch == 0x24) {
+      DocPrint(term.doc, "$$$$");
+    }
+    if (ch >= 32 && ch < 256) // ZealOS's ASCII is up to 255
+    {
+      DocPrint(term.doc, "%c", ch);
+    }
+    else {
+      DocPrint(term.doc, "?"); // unrecognized character
+    }
+  }
+}
+
+U0 ANSIParse()
+{
+  // Basic Telnet protocol parser
+  U8 *ptr = term.buffer;
+  while (ptr < term.buffer + term.buffer_len) {
+    // disable all SAUCE00 art signature? dsnt work
+    // if (StrNCompare(ptr, "\033SAUCE", 6) == 0) 
+    // {
+    //   SysLog("SAUCE found\n");
+    //   term.buffer_len = ptr - term.buffer;
+    // }
+    // Telnet negotiation sequence
+    if (*ptr == NEGOTIATE) { 
+      /*telnet negotiation seems proper...however i don't really see any BBS systems relying on this too much...
+        for instance, the screen size tends to be reported using the Curser Report and not Telnet's NAWS */
+      if (term.sock_ready) TelnetNegotiate(term.sock, ptr);
+      ptr += 3;
+    }
+    else if (*ptr == ANSI_ESC) {
+      // ANSI escape sequence
+      ptr++;
+      if (*ptr == ANSI_CSI) {
+
+		ptr++; // Move past '['
+
+		U8 seqBuffer[64];
+		MemSet(seqBuffer, 0, sizeof(seqBuffer)); // Set all bytes in seqBuffer to 0
+
+		U8 *seqPtr = seqBuffer;
+
+		while (*ptr && !IsAlpha(*ptr) && (seqPtr - seqBuffer < sizeof(seqBuffer) - 1)) {
+			*seqPtr++ = *ptr++;
+		}
+		*seqPtr++ = *ptr++; // Append the final letter
+		*seqPtr = '\0'; // Null-terminate
+
+		HandleANSISequence(seqBuffer);
+      }
+    }
+    else {
+      // Print the received character
+      HandleControlCodes(*ptr);
+      ptr++;
+    }
+  }
+}
+
+U0 TerminalTask() {
+  while (!term.sock_ready)  {
+    Sleep(100); // Avoid busy waiting
+  }
+
+  while (term.sock_ready && !force_disconnect) {
+receive_data:
+    term.buffer_len = TCPSocketReceive(term.sock, term.buffer, BUF_SIZE - 1);
+    if (term.buffer_len > 0) {
+      term.buffer[term.buffer_len] = '\0';
+      // parse the buffer
+      ANSIParse;
+    } else {
+      //SysLog("BUF_SIZE: %d\n", BUF_SIZE);
+      if (!term.sock_ready || force_disconnect)
+        DocPrint(term.doc, "Error: Connection closed by the remote host.\n");
+      else {
+        //SysLog("goto received_data\n");
+        goto receive_data;
+      }
+      break;
+    }
+  }
+}
+
+U0 Telnet(U8 *host=NULL, U16 port=TELNET_PORT) {
+  CHostForm form;
+  term.window_width = 80;
+  term.window_height = 25;
+  term.doc = Fs->display_doc;
+  term.waiting_for_input = TRUE;
+  term.sock_ready = 0;
+  I64 art_path = "::/Home/Net/Programs/Telnet/Art/TelnetSplash.ans";
+  I64 message_code, arg1, arg2;
+  GrPaletteGet(original_palette);
+  AutoComplete(OFF);
+
+  DocMax;
+  DocCursor(OFF);
+
+  SettingsPush;
+  MenuPush(
+    "Telnet {"
+    " Connect(,SCF_ALT+'n');"
+    " Exit(,CH_SHIFT_ESC);"
+    "}"
+    "Load {"
+    "  ANSIArt(,SCF_ALT);"
+    "}"
+    "Config {"
+    "  ToggleDarkMode(,SCF_ALT);"
+    "  SetDarkColors(,SCF_ALT);"
+    "}"
+		"About {"
+		"	Info(,SCF_ALT);"
+		"}"
+  );
+
+  StrCopy(Fs->task_title, "TELNET");
+  Fs->border_src  = BDS_CONST;
+  // Fs->border_attr = LTGREEN << 4 + DriveTextAttrGet(':') & 15;
+  if (dark_mode) Fs->text_attr = WHITE << 4 + BLACK;
+  else Fs->text_attr = BLACK << 4 + WHITE;
+  Fs->title_src = TTS_LOCKED_CONST;
+  DocClear(Fs->border_doc, TRUE);
+
+  Fs->win_width = term.window_width;
+  WinHorz((TEXT_COLS / 2) - (Fs->win_width / 2),
+          (TEXT_COLS / 2) - (Fs->win_width / 2) +
+              (Fs->win_width - 1),
+          Fs);
+  Fs->win_height = term.window_height;
+  WinVert((TEXT_ROWS / 2) - (Fs->win_height / 2),
+          (TEXT_ROWS / 2) - (Fs->win_height / 2) +
+              (Fs->win_height - 1),
+          Fs);
+
+  // this flag will make the term auto-size to the content (ish)
+  // term.doc->flags |= DOCEG_DONT_EDIT;
+
+show_splash:
+  // SplashScreen
+  Fs->border_attr = WHITE << 4 + LTRED;
+  DocClear;
+  // probably should use word wrap? dunno if it actually changes anything in this context...
+  DocPrint(, "$$WW,1$$");
+  // Load the file into the buffer and get its size
+  term.buffer_len = ANSIArtLoad(art_path, term.buffer);
+  if (term.buffer_len > 0) {
+    term.buffer[term.buffer_len] = '\0';
+    // parse the buffer
+    ANSIParse;
+    TermBottom;
+    // Free(term.buffer);
+  }
+  else {
+    DocClear;
+    Print("Error: Could not load splash screen.\n");
+  }
+
+init_connection:
+  while (!term.waiting_for_input || host != NULL)
+  {
+    // if(term.sock != NULL) TCPSocketClose(term.sock);
+    // TODO: should probably kill the task if it already exists too?
+
+    // Spawn a task to receive data from the socket
+    term.task = Spawn(&TerminalTask, NULL, "Telnet");
+
+
+    term.sock = TelnetOpen(host, port);
+    if (term.sock <= 0) {
+      // return;
+      term.waiting_for_input = TRUE;
+      host = NULL;
+      goto show_splash;
+    }
+    Fs->border_attr = WHITE << 4 + GREEN;
+    term.sock_ready = 1; // Signal that the socket is ready
+    term.waiting_for_input = FALSE;
+
+    "$$BG,GREEN$$$$WHITE$$Connected$$FG$$$$BG$$\n";
+    Sleep(1000);
+    DocClear;
+    break;
+  }
+
+  I64 sc;
+	try
+	{
+    while (!force_disconnect) {
+      U8 key = KeyGet(&sc);
+
+      // ALT
+      if (sc & SCF_ALT && !(sc & SCF_CTRL))
+      {
+        switch (key)
+        {
+          // case 0:
+          //   switch (sc.u8[0])
+          //   {
+          //   }
+          case 'n':
+            TelnetPrompt(&form);
+            host = form.host;
+            port = form.port;
+            DocClear;
+            term.waiting_for_input = FALSE;
+            goto init_connection;
+            break;
+          case 'o':
+            art_path = ANSIArtBrowser;
+            if (art_path != NULL) {
+              term.sock_ready = 0;
+              term.waiting_for_input = TRUE;
+              // SysLog("%s\n", art_path);
+              goto show_splash;
+            }
+            else {
+              "Error: Could not load art.\n";
+            }
+            break;
+          case 's':
+            // Save as DD image.
+            StrCopy(term.doc->filename.name, "::/Home/Wallpapers/1024/Default.DD");
+            DocWrite(term.doc, TRUE);
+            break;
+          case 'd':
+            dark_mode = !dark_mode;
+            if (dark_mode) Fs->text_attr = WHITE << 4 + BLACK;
+            else Fs->text_attr = BLACK << 4 + WHITE;
+            break;
+          case 't':
+            original_colors = !original_colors;
+            if (original_colors) PaletteSetStd(FALSE);
+            else {
+              GrPaletteSet(original_palette);
+              LFBFlush;
+            }
+            break;
+          case 'l':
+            PopUpOk("\n\n Not all BBS will work perfectly (yet). \n\n You can load ANSi artwork with Ctrl+O","\n\n\n\t\tMade by y4my4m\n\n");
+            break;
+        }
+      }
+      else {      // fix the bug of holding Ctrl triggers all the CH_CTRL, needs to be handled like in Demo/Graphics/FontEd.ZC:104
+        switch (key)
+        {
+          case 0:
+            switch (sc.u8[0])
+            {
+              case SC_CURSOR_LEFT: if (term.sock_ready) TCPSocketSendString(term.sock, "\x1B[D");  break;
+              case SC_CURSOR_RIGHT: if (term.sock_ready) TCPSocketSendString(term.sock, "\x1B[C"); break;
+              case SC_CURSOR_UP: if (term.sock_ready) TCPSocketSendString(term.sock, "\x1B[A"); break;
+              case SC_CURSOR_DOWN: if (term.sock_ready) TCPSocketSendString(term.sock, "\x1B[B"); break;
+              case SC_PAGE_UP:  if (term.sock_ready) TCPSocketSendString(term.sock, "\033[V"); break;
+              case SC_PAGE_DOWN:if (term.sock_ready) TCPSocketSendString(term.sock, "\033[U"); break;
+              case SC_HOME:     if (term.sock_ready) TCPSocketSendString(term.sock, "\033[H"); break;
+              case SC_END:      if (term.sock_ready) TCPSocketSendString(term.sock, "\033[K"); break;
+              case SC_DELETE:   if (term.sock_ready) TCPSocketSendString(term.sock, "\x7F"); break;
+              case SC_F1:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033OP"); break;
+              case SC_F2:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033OQ"); break;
+              case SC_F3:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033OR"); break;
+              case SC_F4:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033OS"); break;
+              case SC_F5:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033Ot"); break;
+              case SC_F6:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033[17~"); break;
+              case SC_F7:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033[18~"); break;
+              case SC_F8:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033[19~"); break;
+              case SC_F9:       if (term.sock_ready) TCPSocketSendString(term.sock, "\033[20~"); break;
+              case SC_F10:      if (term.sock_ready) TCPSocketSendString(term.sock, "\033[21~"); break;
+              case SC_F11:      if (term.sock_ready) TCPSocketSendString(term.sock, "\033[23~"); break;
+              case SC_F12:      if (term.sock_ready) TCPSocketSendString(term.sock, "\033[24~"); break;
+              default:
+                break;
+            }
+            break;
+          case 9:
+            switch (sc.u8[0])
+            {
+              case SC_TAB:
+                if (term.sock_ready) TCPSocketSendString(term.sock, "\x09");
+                break;
+              default:
+                break;
+            }
+          case CH_BACKSPACE:
+            if (term.sock_ready) TCPSocketSendString(term.sock, "\x08\x7F");
+            break;
+          case CH_SHIFT_ESC:
+            if (term.sock_ready)
+            {
+              term.waiting_for_input = TRUE;
+              term.sock_ready = 0;
+              host = NULL;
+              TCPSocketClose(term.sock);
+              DocClear;
+              "Telnet connection closed.\n";
+              Sleep(100);
+              goto show_splash;
+            }
+            else
+              force_disconnect = TRUE;
+            break;
+          case CH_ESC:
+            if (term.sock_ready) TCPSocketSendString(term.sock, "\x1B");
+            break;
+          // send buffer on enter
+          case '\n':
+            if (term.sock_ready) TCPSocketSendString(term.sock, "\r\n");
+            break;
+          case CH_CTRLU:
+            if(term.sock_ready) TCPSocketSendString(term.sock, "\x15");
+            break;
+          default:
+            if (key >= ' ' && key <= '~') {
+              // Handle regular keys
+              U8 input_buf[2];
+              input_buf[0] = key;
+              input_buf[1] = '\0';
+              if (term.sock_ready) TCPSocketSend(term.sock, input_buf, 1);
+            }
+            break;
+        }
+      }
+
+    }
+  }
+  catch
+    PutExcept;
+
+  // ideally go back to the splashscreen and wait for another input?
+  // term.sock_ready = 0;
+  // term.waiting_for_input = TRUE;
+  // goto show_splash;
+
+  MenuPop;
+  SettingsPop;
+  GrPaletteSet(original_palette);
+  LFBFlush;
+}
+
+// dev server
+// Telnet("localhost", 8888);
+
+// ZealOS's official BBS zealos
+// Telnet("bbs.zealos.net", 4001);
+
+Telnet;
+
+
+/*
+TODO:
+- make all keys send their respective signals (like Ctrl+Key, etc)
+- refactor ANSIParser's TCPSocketSends to send everything to a "TelnetSend" function
+- TelnetSend will handle whether there's a connection or not
+- This will make easier to transform this software into an ANSI viewer / Telnet client/ general purpose Term.
+- There's a lot more to fix, but this is a good start.
+*/

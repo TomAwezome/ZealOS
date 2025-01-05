@@ -1,0 +1,49 @@
+// Telnet("mbrserver.com");
+// Telnet("freechess.org");
+// Telnet("dura-bbs.net", 6359);
+// Telnet("darkrealms.ca");
+
+// good to test refresh, line feed, etc
+// Telnet("20forbeers.com", 1337);
+
+// view public IP
+// Telnet("telnetmyip.com")
+
+// time
+// Telnet("india.colorado.edu", 13);
+
+// telehack
+// Telnet("telehack.com");
+
+// star trek game
+// Telnet("mtrek.com", 1701);
+// Telnet("xmltrek.com", 1701);
+
+// Telnet("bbs.archaicbinary.net"); // Archaic Binary
+// Telnet("ateraan.com", 4002); //  New Worlds - Ateraan
+// Telnet("avalon-rpg.com"); // Avalon: The Legend Lives
+// Telnet("aardmud.org", 4000); // Aardwolf MUD
+// Telnet("TextMMOde.com"); // Sands of Time / Deep Space MMO
+// Telnet("legendofthereddragon.ca"); // Legend of the Red Dragon (Canada)
+// Telnet("lord.stabs.org"); // Legend of the Red Dragon
+// Telnet("thehatshop.mudhosting.net", 3000); // Hallowed Halls
+// Telnet("batmud.bat.org"); // BatMUD
+// Telnet("forgottenkingdoms.org", 4000); // Forgotten Kingdoms
+// Telnet("igormud.org", 1701);// Igor MUD
+// Telnet("achaea.com"); // Achaea, Dreams of Divine Lands
+// Telnet("gcomm.com"); // Galacticomm BBS
+// Telnet("1984.ws"); // 1984
+
+// Telnet("telnet.holdfastbbs.ca", 2323);
+
+// Telnet("bbs.fozztexx.com", 23);
+// Telnet("bbs.bottomlessabyss.net", 2023); // really modern
+
+// Telnet("bbs.stormbbs.com");
+// Telnet("conchaos.synchro.net");
+// Telnet("excelsiorbbs.ddns.net",2000);
+// Telnet("daemonsgate.com");
+// Telnet("bbs.inktwo.com");
+// Telnet("erb.pw/the-bbs");
+
+// bbs.alsgeeklab.com // full of good stuff (irc/gopher browser, etc..)

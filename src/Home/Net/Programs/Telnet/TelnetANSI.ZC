@@ -1,0 +1,537 @@
+U0 HandleANSISequence(U8 *sequence)
+{
+    I64 ansi_code[MAX_ANSI_PARAMS];
+    MemSet(ansi_code, 0, sizeof(ansi_code)); // Initialize all elements to 0
+    I64 ansi_param_count = 0;
+
+    U8 *ptr = sequence;
+    while (*ptr != '\0') {
+        if (IsDigit(*ptr)) {
+            ansi_code[ansi_param_count] = ansi_code[ansi_param_count] * 10 + (*ptr - '0');
+            ptr++;
+        } else if (*ptr == ';') {
+            ansi_param_count++;
+            if (ansi_param_count >= MAX_ANSI_PARAMS) {
+                break; // Avoid going out of bounds
+            }
+            ptr++;
+        } else {
+            // This should be a letter indicating the end of the sequence
+            break;
+        }
+    }
+
+    // Now ptr should be at the final letter of the sequence
+    U8 actionCode = *ptr;
+		// Handle specific ANSI escape sequences
+	switch (actionCode) {
+            case 'n':
+              SysLog("Case n, %d\n",ansi_code[0]);
+              if (ansi_code[0] == 5) {
+                // Respond with terminal readiness
+                SysLog("reported terminal readiness\n");
+                U8 deviceStatusResponse[5];
+                deviceStatusResponse[0] = ANSI_ESC;
+                deviceStatusResponse[1] = ANSI_CSI;
+                deviceStatusResponse[2] = 0x30; // '0'
+                deviceStatusResponse[3] = 0x6E; // 'n'
+                deviceStatusResponse[4] = 0x00; // Null-terminator
+                if (term.sock_ready) TCPSocketSend(term.sock, deviceStatusResponse, 4);
+              }
+              else if (ansi_code[0] == 6) {
+                // Respond with cursor position
+                SysLog("reported cursor position\n");
+                // TODO: position 24rows x 80cols is hardcoded, should actually report the real cursor position
+                // U8 cursorResponse[9] = "\x1B[24;80R";
+                U8 cursorResponse[9];
+                cursorResponse[0] = ANSI_ESC;
+                cursorResponse[1] = '[';  // Start of CSI
+                cursorResponse[2] = '2';  // First digit of "24"
+                cursorResponse[3] = '4';  // Second digit of "24"
+                cursorResponse[4] = ';';  // Separator
+                cursorResponse[5] = '8';  // First digit of "80"
+                cursorResponse[6] = '0';  // Second digit of "80"
+                cursorResponse[7] = 'R';  // End of CPR
+                cursorResponse[8] = 0x00; // Null-terminator
+                if (term.sock_ready) TCPSocketSend(term.sock, cursorResponse, 9);
+              } 
+              else if (ansi_code[0] == 255) {
+                // https://github.com/NuSkooler/enigma-bbs/blob/97cd0c3063b0c9f93a0fa4a44a85318ca81aef43/core/ansi_term.js#L140
+                SysLog("TODO: reported screensize?\n");
+                // SendWindowSize(term.sock, 80, 25);
+              }
+              break;
+            case 'c':
+              // Respond with device attributes
+              SysLog("reported device attributes\n");
+              // Reports at VT101 (not sure why though)
+              U8 deviceAttributesResponse[8];
+              deviceAttributesResponse[0] = ANSI_ESC;
+              deviceAttributesResponse[1] = ANSI_CSI;
+              deviceAttributesResponse[2] = 0x3F; // '?' 
+              deviceAttributesResponse[3] = 0x31; // '1' 
+              deviceAttributesResponse[4] = 0x3B; // ';' 
+              deviceAttributesResponse[5] = 0x32; // '0' 
+              deviceAttributesResponse[6] = 0x63; // 'c' 
+              deviceAttributesResponse[7] = 0x00; // Null-terminator
+              if (term.sock_ready) TCPSocketSend(term.sock, deviceAttributesResponse, 7);
+              
+              break;
+            case 'm':
+              // this is where colors are being set
+              // TODO: what happens in this case??? --> [0;1;34;44m
+              I64 m;
+              Bool isBright = FALSE;
+			//   if (ansi_param_count >2)
+			//   {
+			// 	SysLog("param: %d \n", ansi_param_count);
+			// 	SysLog("%d | %d\n", m, ansi_code[m]);
+			//   }
+              for (m = 0; m <= ansi_param_count; m++) {
+                if (ansi_code[m] <= 10) {
+                  switch (ansi_code[m]) {
+                    case 0: 
+                    //   if (dark_mode)
+                    //     DocPrint(term.doc, "$$BG,WHITE$$$$BLACK$$"); 
+                    //   else
+                    //     DocPrint(term.doc, "$$BG$$$$FG$$");
+						DocPrint(term.doc, "$$BG,WHITE$$$$BLACK$$"); 
+						isBright = FALSE; 
+						break; // reset
+                    case 1: isBright = TRUE; break;
+                    case 2: isBright = FALSE; break;
+                    default: break;
+                  }
+                }
+                else if ((ansi_code[m] >= 30 && ansi_code[m] <= 39) || (ansi_code[m] >= 90 && ansi_code[m] <= 97)) {
+                  // Set foreground color
+                  // SysLog("ansi_code[%d] = %d\n", m, ansi_code[m]);
+                  if(!isBright){
+                    switch (ansi_code[m]) {
+                      case 30:
+                        // if (dark_mode) DocPrint(term.doc, "$$WHITE$$");
+                        // else DocPrint(term.doc, "$$BLACK$$");
+                        DocPrint(term.doc, "$$WHITE$$");
+                        break;
+                      case 31:   
+                        DocPrint(term.doc, "$$RED$$"); 
+                        break;
+                      case 32:   
+                        DocPrint(term.doc, "$$GREEN$$"); 
+                        break;
+                      case 33:   
+                        DocPrint(term.doc, "$$YELLOW$$"); 
+                        break;
+                      case 34:   
+                        DocPrint(term.doc, "$$BLUE$$"); 
+                        break;
+                      case 35:   
+                        DocPrint(term.doc, "$$PURPLE$$"); 
+                        break;
+                      case 36:   
+                        DocPrint(term.doc, "$$CYAN$$"); 
+                        break;
+                      case 37:
+                        // if (dark_mode) DocPrint(term.doc, "$$BLACK$$");
+                        // else DocPrint(term.doc, "$$WHITE$$");
+                        DocPrint(term.doc, "$$BLACK$$");
+                        break;
+                      case 39:
+                        // if (dark_mode) DocPrint(term.doc, "$$WHITE$$");
+                        // else DocPrint(term.doc, "$$FG$$");
+                        DocPrint(term.doc, "$$WHITE$$");
+                        break;
+                      default: break;
+                    }
+                  }
+                  else {
+                    switch (ansi_code[m]) {
+                      case 90:
+                      case 30:  
+                        // if (dark_mode) DocPrint(term.doc, "$$LTGRAY$$");
+                        // else DocPrint(term.doc, "$$DKGRAY$$");
+						DocPrint(term.doc, "$$LTGRAY$$");
+                        break;
+                      case 91:
+                      case 31:  
+                        DocPrint(term.doc, "$$LTRED$$"); 
+                        break;
+                      case 92:
+                      case 32:  
+                        DocPrint(term.doc, "$$LTGREEN$$"); 
+                        break;
+                      case 93:
+                      case 33:  
+                        DocPrint(term.doc, "$$YELLOW$$"); 
+                        break;
+                      case 94:
+                      case 34:  
+                        DocPrint(term.doc, "$$LTBLUE$$"); 
+                        break;
+                      case 95:
+                      case 35:  
+                        DocPrint(term.doc, "$$LTPURPLE$$"); 
+                        break;
+                      case 96:
+                      case 36:  
+                        DocPrint(term.doc, "$$LTCYAN$$"); 
+                        break;
+                      case 97:
+                      case 37:
+                        // if (dark_mode) DocPrint(term.doc, "$$DKGRAY$$");
+                        // else DocPrint(term.doc, "$$LTGRAY$$");
+                        DocPrint(term.doc, "$$DKGRAY$$");
+                        break;
+                      case 39:  
+                        // if (dark_mode) DocPrint(term.doc, "$$WHITE$$");
+                        // else DocPrint(term.doc, "$$FG$$");
+						DocPrint(term.doc, "$$WHITE$$");
+                        break;
+                      default: break;
+                    }
+                  }
+                }
+                // this is a dumb approach, just do a CatPrint or something
+                // until we properly catch the `;` it will stay buggy
+                else if ((ansi_code[m] >= 40 && ansi_code[m] <= 49) || (ansi_code[m] >= 100 && ansi_code[m] <= 107)) {
+                  // Set background color
+                  // SysLog("ansi_code[%d] = %d\n", m, ansi_code[m]);
+                  if(!isBright){
+                    switch (ansi_code[m]) {
+                      case 40:
+                        // if (dark_mode) DocPrint(term.doc, "$$BG,WHITE$$");
+                        // else DocPrint(term.doc, "$$BG,BLACK$$");
+						DocPrint(term.doc, "$$BG,WHITE$$");
+                        break;
+                      case 41:
+                        DocPrint(term.doc,"$$BG,RED$$");
+                        break;
+                      case 42:
+                        DocPrint(term.doc,"$$BG,GREEN$$");
+                        break;
+                      case 43:
+                        DocPrint(term.doc,"$$BG,YELLOW$$");
+                        break;
+                      case 44:
+                        DocPrint(term.doc,"$$BG,BLUE$$");
+                        break;
+                      case 45:
+                        DocPrint(term.doc,"$$BG,PURPLE$$");
+                        break;
+                      case 46:
+                        DocPrint(term.doc,"$$BG,CYAN$$");
+                        break;
+                      case 47:
+                        // if (dark_mode) DocPrint(term.doc, "$$BG,BLACK$$");
+                        // else DocPrint(term.doc, "$$BG,WHITE$$");
+                        DocPrint(term.doc, "$$BG,BLACK$$");
+                        break;
+                      case 49:
+                        // if (dark_mode) DocPrint(term.doc, "$$BG,WHITE$$");
+                        // else DocPrint(term.doc, "$$BG$$");
+                        DocPrint(term.doc, "$$BG,WHITE$$");
+                        break;
+                      default: break;
+                    }
+                  }
+                  else {
+                    switch (ansi_code[m]) {
+                      case 100:
+                      case 40:
+                        // if (dark_mode) DocPrint(term.doc, "$$BG,LTGRAY$$");
+                        // else DocPrint(term.doc, "$$BG,DKGRAY$$");
+						DocPrint(term.doc, "$$BG,LTGRAY$$");
+                        break;
+                      case 101:
+                      case 41:
+                        DocPrint(term.doc,"$$BG,LTRED$$");
+                        break;
+                      case 102:
+                      case 42:
+                        DocPrint(term.doc,"$$BG,LTGREEN$$");
+                        break;
+                      case 103:
+                      case 43:
+                        DocPrint(term.doc,"$$BG,YELLOW$$");
+                        break;
+                      case 104:
+                      case 44:
+                        DocPrint(term.doc,"$$BG,LTBLUE$$");
+                        break;
+                      case 105:
+                      case 45:
+                        DocPrint(term.doc,"$$BG,LTPURPLE$$");
+                        break;
+                      case 106:
+                      case 46:
+                        DocPrint(term.doc,"$$BG,LTCYAN$$");
+                        break;
+                      case 107:
+                      case 47:
+                        // if (dark_mode) DocPrint(term.doc, "$$BG,DKGRAY$$");
+                        // else DocPrint(term.doc, "$$BG,LTGRAY$$");
+						DocPrint(term.doc, "$$BG,DKGRAY$$");
+                        break;
+                      case 49:
+                        // if (dark_mode) DocPrint(term.doc, "$$BG,LTGRAY$$");
+                        // else DocPrint(term.doc, "$$BG$$");
+						DocPrint(term.doc, "$$BG,LTGRAY$$");
+                        break;
+                          // reset
+                      default: break;
+                    }
+                  }
+                }
+              }
+              
+              break;
+            case 'A':
+              // Cursor Up
+              SysLog("Cursor Up\n");
+              // "$$CM+TY,0,-%d$$", ansi_code[0];
+              DocPrint(term.doc, "$$CM,0,-%d$$", ansi_code[0]);
+              
+              break;
+            case 'B':
+              // Cursor Down
+              SysLog("Cursor Down\n");
+              DocPrint(term.doc, "$$CM,0,%d$$", ansi_code[0]);
+              
+              break;
+            case 'C':
+              // Cursor Right
+              // SysLog("Cursor Right %d %d\n", ansi_param_count, ansi_code[0]);
+              // DocPrint(term.doc, "$$CM,%d,0$$", ansi_code[0]);
+              // seems to be less prone to bugs?
+              I64 cr;
+              for (cr=0; cr<ansi_code[0]; cr++){
+                DocPrint(term.doc, " ");
+              }
+              
+              break;
+            case 'D':
+              // Cursor Left
+              SysLog("Cursor Left\n");
+              DocPrint(term.doc, "$$CM,-%d,0$$", ansi_code[0]);
+              
+              break;
+            case 'E':
+              // Cursor Next Line
+              SysLog("Cursor Next Line\n");
+              DocPrint(term.doc, "\n");
+              
+              break;
+            case 'F':
+              // Cursor Previous Line
+              SysLog("Cursor Previous Line\n");
+              DocPrint(term.doc, "$$CM+LY,0,-%d$$", ansi_code[0]);
+              
+              break;
+            case 'G':
+              // Cursor Horizontal Absolute	
+              SysLog("Cursor Horizontal Absolute\n");
+              DocPrint(term.doc, "$$CM,%d,0$$", ansi_code[0]);
+              
+              break;
+            case 'H':
+            case 'f':
+              I64 row = 1, col = 1;  // default values
+			
+              // Parse the row number
+              if(ansi_code[0] != 1)
+                row = ansi_code[0];
+              if(ansi_code[1] != 1)
+                col = ansi_code[1];
+
+              // If we're already at the right position, no need to move
+              // if (row == term.current_row && col == term.current_col) {
+              //   
+              //   break;
+              // }
+
+              //SysLog("H or f row:%d, col:%d, cnt:%d\n", row, col, ansi_param_count);
+
+
+              // Adjust the position based on the window size
+              if (row >= term.window_height) {
+                  row = term.window_height - 1;
+              } else if (row < 1) {
+                  row = 1;
+              }
+
+              if (col >= term.window_width) {
+                  col = term.window_width - 1;
+              } else if (col < 1) {
+                  col = 1;
+              }
+
+              // if (row == term.window_height) {
+              //   term.current_row = row;
+              //   term.current_col = col;
+              //   DocPrint(term.doc, "$$CM+LX+TY,LE=%d,RE=%d$$", term.current_col-1, term.current_row-1);
+              //   DocPrint(term.doc, "\n");
+              //   
+              //   break;
+              // }
+
+              // If row or col are at their max value, reset the current position to 1
+              // if (row == term.window_height || col == term.window_width) {
+              //   if (row == term.window_height) term.current_row = 1;
+              //   if (col == term.window_width) term.current_col = 1;
+              //   
+              //   break;
+              // }
+
+              term.current_row = row;
+              term.current_col = col;
+              
+              DocPrint(term.doc, "$$CM+LX+TY,LE=%d,RE=%d$$", term.current_col-1, term.current_row-1);
+              
+              break;
+            case 'J':
+              SysLog("J code, %d  %d\n", ansi_param_count, ansi_code[0]);
+              // Erase in Display
+              if (ansi_code[0] == 0) {
+                // Erase from cursor to end of display
+                // TODO: dont think this is working
+                // DocDelToNum(Fs->display_doc, Fs->display_doc->cur_entry->line_num);
+              } else if (ansi_code[0] == 1) {
+                // Erase from cursor to beginning of display
+                // TODO: dont think this is working
+                // DocDelToEntry(Fs->display_doc, Fs->display_doc->cur_entry, FALSE);
+              } else if (ansi_code[0] == 2) {
+                // Erase entire display
+                DocClear(term.doc);
+                // Clear the buffer
+                // term.buffer_len = 0; 
+                // MemSet(term.buffer, 0, BUF_SIZE);
+                // Sleep(100);
+              }
+              
+              break;
+            case 'K':
+              // TODO: I have no idea if this actually works
+              SysLog("K code, %d  %d\n", ansi_param_count, ansi_code[0]);
+              if (ansi_param_count == 0 || ansi_code[0] == 0) {
+                  // Erase from cursor to end of line
+                  // LineDeleteToEnd(term.doc->cur_entry, doc.term->cur_col);
+                  // DocDelToEntry(term.doc, term.doc->cur_entry, TRUE);
+
+                  // DocDelToNum(term.doc, 80);
+                  // DocRecalc(term.doc);
+              } else if (ansi_code[0] == 1) {
+                  // Erase from cursor to beginning of line
+                  // LineDeleteToStart(term.doc->cur_entry, doc.term->cur_col);
+              } else if (ansi_code[0] == 2) {
+                  // Erase entire line
+                  // LineDeleteEntire(term.doc->cur_entry);
+              }
+              
+              break;
+            case 'L':
+              SysLog("L code\n");
+              // DocPrint(term.doc, "\n");
+              
+              break;
+            case 'S':
+              // TODO: Scroll Up
+              SysLog("S Scroll Up");
+              
+              break;
+            case 'T':
+              // TODO: Scroll Down
+              SysLog("T Scroll Down");
+              
+              break;
+            case 'M':
+              SysLog("Case M\n");
+              // TODO: is this correct? cursor should go one line up
+              DocPrint(term.doc, "$$CM,0,-1$$");
+              
+              break;
+            case '?':
+              
+              I64 code = 0;
+
+              while (IsDigit(*ptr)) {
+                code = code * 10 + (*ptr - '0');
+                
+              }
+              switch (code) {
+                case 25:
+                  // need to specify which doc?
+                //   if (*ptr == 'l') DocCursor(OFF); // Hide cursor
+                //   if (*ptr == 'h') DocCursor(ON); // Show cursor
+                   // Move past 'l' or 'h'
+                  break;
+                case 47:
+                  if (*ptr == 'l') SysLog("code 47l\n"); // restore screen
+                  if (*ptr == 'h') SysLog("code 47h\n"); // save screen
+                   // Move past 'l' or 'h'
+                  break;
+                case 1049:
+                  if (*ptr == 'l') SysLog("code 1049l\n"); // enables the alternative buffer
+                  if (*ptr == 'h') SysLog("code 1049h\n"); // disables the alternative buffer
+                   // Move past 'l' or 'h'
+                  break;
+                default:
+                  
+                  break;
+              }
+              break;
+            case 's':
+              SysLog("SaveCurrentCursorPosition\n");
+              
+              break;
+            case 'u':
+              SysLog("RestoreCurrentCursorPosition\n");
+              
+              break;
+            case 'r':
+              // self.restoreCursorPosition();
+              SysLog("r case \n");
+              
+              break;
+            case 'h':
+            case 'l':
+              // TODO: Handle 'h' (set mode) or 'l' (reset mode) codes
+              SysLog("h or l case \n");
+               // Skip 'h' or 'l'
+              break;
+            case 't':
+              // for (m = 0; m <= ansi_param_count; m++) {
+                SysLog("ansi_code[%d]: %d\n", m, ansi_code[m]);
+              // }
+              if (ansi_param_count == 3) {
+                if (ansi_code[0] == 8) {
+                  term.window_width = ansi_code[1];
+                  term.window_height = ansi_code[2];
+                  Fs->win_width = term.window_width;
+                  WinHorz((TEXT_COLS / 2) - (Fs->win_width / 2),
+                          (TEXT_COLS / 2) - (Fs->win_width / 2) +
+                              (Fs->win_width - 1),
+                          Fs);
+                  Fs->win_height = term.window_height;
+                  WinVert((TEXT_ROWS / 2) - (Fs->win_height / 2),
+                          (TEXT_ROWS / 2) - (Fs->win_height / 2) +
+                              (Fs->win_height - 1),
+                          Fs);
+                }
+              }
+
+              
+              break;
+            case '=':
+              SysLog("ScreenMode attempt\n");
+              
+              break;
+            default:
+              // if(!IsDigit(*ptr)) {
+              if(*ptr > 0x32) {
+                SysLog("Unknown code: 0x%X\n", *ptr);
+              }
+              
+              break;
+        }
+ 
+}

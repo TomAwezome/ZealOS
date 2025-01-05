@@ -114,6 +114,11 @@ U0 Cvt(U8 *ff_mask="*", U8 *fu_flags="+r+l-i+S")
 	Find("RWF_SCROLL",			ff_mask,fu_flags,"RAWF_SCROLL");
 	Find("RawDr",				ff_mask,fu_flags,"RawDumpRegs");
 
+	//Added by y4my4m August 13 2023
+	Find("ms_hard",				ff_mask,fu_flags,"mouse_hard");
+	Find("MsUpdate",			ff_mask,fu_flags,"MouseUpdate");
+  	Find("FlushMsgs",			ff_mask,fu_flags,"FlushMessages");
+
 	"\n$$BK,1$$$$LTRED$$Might want to go over these$$FG$$$$BK,0$$\n";
 	Find("MemSet", ff_mask, fu_flags);
 }

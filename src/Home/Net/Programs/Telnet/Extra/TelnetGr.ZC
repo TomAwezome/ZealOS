@@ -1,0 +1,909 @@
+// Telnet client for ZealOS by y4my4m
+// Public Domain
+Cd(__DIR__);;
+
+#define TELNET_PORT 23
+#define BUF_SIZE 8192 // way too big?
+#define INPUT_BUF_SIZE 32
+#define TIMEOUT_DURATION 500000
+
+#define NEGOTIATE 0xFF
+
+#define ANSI_ESC 0x1B
+#define ANSI_CSI 0x5B // [
+
+#define CHAR_HEIGHT 8
+#define CHAR_WIDTH 8
+
+#define MAX_ANSI_PARAMS 32
+
+#include "TelnetNegotiation"
+#include "TelnetHelpers"
+
+Bool force_disconnect = FALSE;
+Bool redraw_needed = FALSE;
+
+class ScreenCell {
+  U8 ch;
+  I64 color;
+  I64 bgcolor;
+}
+class Terminal {
+  I64 sock;
+  Bool sock_ready;
+  I64 window_width;
+  I64 window_height;
+  CDoc *doc;
+  CTask *task;
+  CDC *dc;
+
+  ScreenCell screen[25][80];
+
+  I64 current_color;
+  I64 current_bgcolor;
+  I64 cursor_x;
+  I64 cursor_y;
+
+  U8 buffer[BUF_SIZE];
+  I64 buffer_len;
+} term;
+
+
+I64 TelnetOpen(U8 *host, U16 port) {
+  I64 socket;
+
+  if (host == NULL) {
+    return -1;
+  }
+
+  socket = TCPConnectionCreate(host, port);
+  "$$GREEN$$Conecting to %s:%d.$$FG$$$$BG$$\n", host, port;
+  if (socket <= 0) {
+    PrintErr("Failed to connect to %s:%d\n", host, port);
+    return socket;
+  }
+
+	// sock(CTCPSocket *)->timeout = 0;
+	// sock(CTCPSocket *)->timeout = TCP_TIMEOUT;
+  return socket;
+}
+
+U0 HandleControlCodes(U8 ch) {
+  if (ch < 32) { // ASCII code below 32 (control character)
+    switch (ch) {
+      case 0: // NUL (Null) - Typically ignored
+        break;
+      case 7: // BEL (Bell)d
+        Beep;
+        break;
+      case 8: // BS (Backspace)
+        term.cursor_x--;
+        break;
+      case 9: // HT (Horizontal Tab)
+        term.cursor_x += 8;
+        break;
+      case 10: // LF (Line Feed)
+        term.cursor_y++;
+        if (term.cursor_y >= term.window_height) {
+          // DocClear(term.doc);
+
+          // DCFill(DCAlias,BLACK);
+          // term.cursor_x = 0;
+          term.cursor_y = 0; // reset Y position to 0 when it exceeds window height
+        }
+        // If the next character is CR, ignore it
+        // TODO: dont directly manipulate the buffer
+        // if (*(term.buffer + 1) == 13) term.buffer++;
+        break;
+      case 11: // VT (Vertical Tab)
+        SysLog("Vertical Tab\n");
+        break;
+      case 12: // FF (Form Feed)
+        // DocClear(term.doc);
+        // DCFill(DCAlias,BLACK);
+        term.cursor_x = 0;
+        term.cursor_y = 0;
+        break;
+      case 13: // CR (Carriage Return)
+        term.cursor_x = 0;
+        // If the next character is LF, ignore it
+        // if (*(term.buffer + 1) == 10) term.buffer++;
+        break;
+      case 14: // SO (Shift Out) - Switch to an alternate character set
+      case 15: // SI (Shift In)  - Switch back to the default character set
+        SysLog("Shift In/Out\n");
+        break;
+      case 22:
+        SysLog("Synchronous Idle\n");
+        break;
+      case 23:
+        SysLog("End of Transmission Block\n");
+        break;
+      case 24:
+        SysLog("Cancel\n");
+        break;
+      case 25:
+        SysLog("End of Medium\n");
+        break;
+      case 26:
+        SysLog("Sub\n");
+        break;
+      case 27:
+        SysLog("Esc\n");
+        break;
+      case 28:
+        SysLog("Fs\n");
+        break;
+      case 29:
+        SysLog("Gs\n");
+        break;
+      case 30:
+        SysLog("Rs\n");
+        break;
+      case 31:
+        SysLog("Unit Separator\n");
+        break;
+      default:
+        // SysLog("CC %c happened\n", ch);
+        SysLog("CC happened\n");
+        break;
+    }
+  } 
+  else {
+    if (ch == 127) {
+      SysLog("case 127");
+    }
+    if (ch == 0x24) {
+      // ch = "//$$$$";
+    }
+    if (ch >= 32 && ch < 256) // ZealOS's ASCII is up to 255
+    {
+      term.screen[term.cursor_y][term.cursor_x].ch = ch;
+      term.screen[term.cursor_y][term.cursor_x].color = term.current_color;
+      term.screen[term.cursor_y][term.cursor_x].bgcolor = term.current_bgcolor;
+      term.cursor_x++;
+      if (term.cursor_x >= term.window_width) {
+        term.cursor_x = 0;
+        term.cursor_y++;
+        if (term.cursor_y >= term.window_height) {
+          term.cursor_y = 0;
+        }
+      }
+    }
+    else {
+      // "%c", '?'; // unrecognized character
+    }
+  }
+}
+
+
+I64 LoadSplashScreen(U8 *filename) {
+  CFile *file = FOpen(filename, "rb");
+  if (!file) {
+    PrintErr("Failed to open file");
+    return -1;
+  }
+
+  // Ensure that the file size isn't larger than the buffer
+  if (file->de.size > BUF_SIZE) {
+    PrintErr("File is too large for the buffer.");
+    FClose(file);
+    return -1;
+  }
+
+  // Calculate the number of full blocks to read based on file size and block size
+  I64 full_blocks = file->de.size / BLK_SIZE;
+  I64 remaining_bytes = file->de.size % BLK_SIZE;
+
+  SysLog("File size: %d, Number of full blocks: %d, Remaining bytes: %d\n", file->de.size, full_blocks, remaining_bytes);
+
+  // Read the full blocks into the buffer
+  I64 i, blocks_read = 0;
+  for (i = 0; i < full_blocks; i++) {
+    blocks_read += FBlkRead(file, term.buffer + i * BLK_SIZE, i, 1);
+  }
+
+  // Check if there are any remaining bytes in the last block
+  if (remaining_bytes != 0) {
+    // Read the remaining bytes
+    U8 temp_buffer[BLK_SIZE];
+    if (FBlkRead(file, temp_buffer, full_blocks, 1)) {
+      blocks_read++;
+      MemCopy(term.buffer + full_blocks * BLK_SIZE, temp_buffer, remaining_bytes);
+    }
+  }
+
+  FClose(file);
+
+  if (blocks_read != (full_blocks + (remaining_bytes != 0))) {
+    PrintErr("Failed to read all the blocks");
+    return -1;
+  }
+
+  return file->de.size;  // Return the number of bytes read
+}
+
+U0 TerminalDrawIt(CTask *task, CDC *dc)
+{
+  // Clear the document
+  // DocClear(term.doc);
+  // Sleep(100);
+  DCFill;
+
+  I64 row, col;
+  // Loop over the screen array and draw each character
+  for (row = 0; row < term.window_height; row++) {
+    for (col = 0; col < term.window_width; col++) {
+      // Get the character and color from the screen array
+      U8 ch = term.screen[row][col].ch;
+
+      // Set the color
+      dc->color = term.screen[row][col].color;
+      dc->bkcolor = term.screen[row][col].bgcolor;
+      // term.dc->color = WHITE;
+
+      // Draw the character
+      // GrPutChar(term.dc, col * CHAR_WIDTH, row * CHAR_HEIGHT, ch);
+      GrPutChar(dc, col * 8, row * 8, ch);
+    }
+  }
+  
+  // Draw the curso
+  // Note: this draws the cursor as a white rectangle. You may want to customize this.
+  // dc->color = WHITE;
+  // GrRect(term.dc, term.cursor_x * 8, term.cursor_y * 8, 
+  //        (term.cursor_x + 1) * 8 - 1, (term.cursor_y + 1) * 8 - 1);
+}
+
+U0 ANSIParse()
+{
+  // Parse the buffer and draw the contents
+  U8 *ptr = term.buffer;
+  while (ptr < term.buffer + term.buffer_len) {
+    // Telnet negotiation sequence
+    if (*ptr == NEGOTIATE) {
+      // FIXME: i don't think the telnet negotiation is actually working properly?
+      TelnetNegotiate(term.sock, *ptr);
+      ptr += 3;
+    }
+    else if (*ptr == ANSI_ESC) {
+      // ANSI escape sequence
+      ptr++;
+      if (*ptr == ANSI_CSI) {
+        ptr++;
+        I64 ansi_code[MAX_ANSI_PARAMS], counter;
+        for (counter = 0; counter < MAX_ANSI_PARAMS; counter++) {
+            ansi_code[counter] = 0;  // Initialize all elements to 0
+        }
+        I64 ansi_param_count = 0;
+        while (IsDigit(*ptr) || *ptr == ';') {
+            if (IsDigit(*ptr)) {
+                ansi_code[ansi_param_count] = ansi_code[ansi_param_count] * 10 + (*ptr - '0');
+                ptr++;
+            }
+            else if (*ptr == ';') {
+                ansi_param_count++;
+                if (ansi_param_count >= MAX_ANSI_PARAMS) {
+                    // Error handling: too many parameters
+                    break;
+                }
+                ptr++;
+                if(!IsDigit(*ptr) || *ptr == ';'){
+                    break;
+                }
+            }
+        }
+
+        // Handle specific ANSI escape sequences
+        switch (*ptr) {
+            case 'n':
+              SysLog("Case n, %d\n",ansi_code[0]);
+              if (ansi_code[0] == 5) {
+                // Respond with terminal readiness
+                SysLog("reported terminal readiness\n");
+                U8 deviceStatusResponse[5];
+                deviceStatusResponse[0] = ANSI_ESC;
+                deviceStatusResponse[1] = ANSI_CSI;
+                deviceStatusResponse[2] = 0x30; // '0'
+                deviceStatusResponse[3] = 0x6E; // 'n'
+                deviceStatusResponse[4] = 0x00; // Null-terminator
+                TCPSocketSend(term.sock, deviceStatusResponse, 4);
+                // TCPSocketSendString(term.sock, "\x1B[0n");
+              }
+              else if (ansi_code[0] == 6) {
+                // Respond with cursor position
+                // U8 response[32] = "\x1B[%d;%dR", window_width, term.window_height;
+                SysLog("reported cursor position\n");
+                U8 cursorResponse[8];
+                cursorResponse[0] = ANSI_ESC;
+                cursorResponse[1] = ANSI_CSI;
+                cursorResponse[2] = 0x32;
+                cursorResponse[3] = 0x35;
+                cursorResponse[4] = 0x3B;
+                cursorResponse[5] = 0x38;
+                cursorResponse[6] = 0x30;
+                cursorResponse[6] = 0x52;
+                cursorResponse[7] = 0x00;
+                TCPSocketSend(term.sock, cursorResponse, 7);
+                // TCPSocketSendString(term.sock, "\x1B\[25;80R");
+              } 
+              else if (ansi_code[0] == 255) {
+                // https://github.com/NuSkooler/enigma-bbs/blob/97cd0c3063b0c9f93a0fa4a44a85318ca81aef43/core/ansi_term.js#L140
+                SysLog("reported screensize?\n");
+                SendWindowSize(term.sock, 25, 80);
+              }
+              ptr++;
+              break;
+            case 'c':
+              // Respond with device attributes
+              SysLog("reported device attributes\n");
+              // TCPSocketSendString(term.sock, "\x1B[?1;0c");
+              // Reports at VT101 (not sure why though)
+              U8 deviceAttributesResponse[8];
+              deviceAttributesResponse[0] = ANSI_ESC;
+              deviceAttributesResponse[1] = ANSI_CSI;
+              deviceAttributesResponse[2] = 0x3F; // '?' 
+              deviceAttributesResponse[3] = 0x31; // '1' 
+              deviceAttributesResponse[4] = 0x3B; // ';' 
+              deviceAttributesResponse[5] = 0x32; // '0' 
+              deviceAttributesResponse[6] = 0x63; // 'c' 
+              deviceAttributesResponse[7] = 0x00; // Null-terminator
+              TCPSocketSend(term.sock, deviceAttributesResponse, 7);
+              ptr++;
+              break;
+            case 'm':
+              // Set graphics mode (colors)
+              I64 m;
+              Bool isBright = FALSE;
+              for (m = 0; m <= ansi_param_count; m++) {
+                if (ansi_code[m] <= 10) {
+                  switch (ansi_code[m]) {
+                    case 0: 
+                      term.current_bgcolor = BLACK; // should be BG  FG for full reset 
+                      term.current_color = WHITE; // should be BG  FG for full reset 
+                      isBright = FALSE; 
+                      break; // reset
+                    case 1: isBright = TRUE; break;
+                    case 2: isBright = FALSE; break;
+                  }
+                }
+                else if ((ansi_code[m] >= 30 && ansi_code[m] <= 39) || (ansi_code[m] >= 90 && ansi_code[m] <= 97)) {
+                  // Set foreground color
+                  // SysLog("ansi_code[%d] = %d\n", m, ansi_code[m]);
+                  if(!isBright){
+                    switch (ansi_code[m]) {
+                      case 30:
+                        term.current_color = BLACK;
+                        break;
+                      case 31:
+                        term.current_color = RED;
+                        break;
+                      case 32:
+                        term.current_color = GREEN;
+                        break;
+                      case 33:
+                        term.current_color = YELLOW;
+                        break;
+                      case 34:
+                        term.current_color = BLUE;
+                        break;
+                      case 35:
+                        term.current_color = PURPLE;
+                        break;
+                      case 36:
+                        term.current_color = CYAN;
+                        break;
+                      case 37:
+                        term.current_color = WHITE;
+                        break;
+                      case 39:
+                        term.current_color = WHITE;
+                        break;
+                      default: break;
+                    }
+                  }
+                  else {
+                    switch (ansi_code[m]) {
+                      case 90:
+                      case 30:
+                        term.current_color = DKGRAY;
+                        break;
+                      case 91:
+                      case 31:
+                        term.current_color = LTRED;
+                        break;
+                      case 92:
+                      case 32:
+                        term.current_color = LTGREEN;
+                        break;
+                      case 93:
+                      case 33:
+                        term.current_color = YELLOW;
+                        break;
+                      case 94:
+                      case 34:
+                        term.current_color = LTBLUE;
+                        break;
+                      case 95:
+                      case 35:
+                        term.current_color = LTPURPLE;
+                        break;
+                      case 96:
+                      case 36:
+                        term.current_color = LTCYAN;
+                        break;
+                      case 97:
+                      case 37:
+                        term.current_color = LTGRAY;
+                        break;
+                      case 39:
+                        term.current_color = WHITE;
+                        break;
+                      default: break;
+                    }
+                  }
+                }
+                // this is a dumb approach, just do a CatPrint or something
+                // until we properly catch the `;` it will stay buggy
+                else if ((ansi_code[m] >= 40 && ansi_code[m] <= 49) || (ansi_code[m] >= 100 && ansi_code[m] <= 107)) {
+                  // Set background color
+                  // SysLog("ansi_code[%d] = %d\n", m, ansi_code[m]);
+                  if(!isBright){
+                    switch (ansi_code[m]) {
+                      case 40:
+                        term.current_bgcolor = BLACK;
+                        break;
+                      case 41:
+                        term.current_bgcolor = RED;
+                        break;
+                      case 42:
+                        term.current_bgcolor = GREEN;
+                        break;
+                      case 43:
+                        term.current_bgcolor = YELLOW;
+                        break;
+                      case 44:
+                        term.current_bgcolor = BLUE;
+                        break;
+                      case 45:
+                        term.current_bgcolor = PURPLE;
+                        break;
+                      case 46:
+                        term.current_bgcolor = CYAN;
+                        break;
+                      case 47:
+                        term.current_bgcolor = WHITE;
+                        break;
+                      case 49:
+                        // reset
+                        term.current_bgcolor = BLACK;
+                        break;
+                      default: break;
+                    }
+                  }
+                  else {
+                    switch (ansi_code[m]) {
+                      case 100:
+                      case 40:
+                        term.current_bgcolor = DKGRAY;
+                        break;
+                      case 101:
+                      case 41:
+                        term.current_bgcolor = LTRED;
+                        break;
+                      case 102:
+                      case 42:
+                        term.current_bgcolor = LTGREEN;
+                        break;
+                      case 103:
+                      case 43:
+                        term.current_bgcolor = YELLOW;
+                        break;
+                      case 104:
+                      case 44:
+                        term.current_bgcolor = LTBLUE;
+                        break;
+                      case 105:
+                      case 45:
+                        term.current_bgcolor = LTPURPLE;
+                        break;
+                      case 106:
+                      case 46:
+                        term.current_bgcolor = LTCYAN;
+                        break;
+                      case 107:
+                      case 47:
+                        term.current_bgcolor = LTGRAY;
+                        break;
+                      case 49:
+                        // reset
+                        term.current_bgcolor = BLACK;
+                      default: break;
+                    }
+                  }
+                }
+              }
+              ptr++;
+              break;
+            case 'A':
+              // Cursor Up
+              SysLog("Cursor Up\n");
+              term.cursor_y -= ansi_code[0];
+              ptr++;
+              break;
+            case 'B':
+              // Cursor Down
+              SysLog("Cursor Down\n");
+              term.cursor_y += ansi_code[0];
+              ptr++;
+              break;
+            case 'C':
+              // Cursor Right
+              // SysLog("Cursor Right %d %d\n", ansi_param_count, ansi_code[0]);
+              term.cursor_x += ansi_code[0];
+              // NOTE: this has been "fixed" since we now change the window's background color
+              // if we just move the cursor, 
+              // you dont get the colored background since we skip over it directly
+              // I64 C;
+              // for (C = 0; C < ansi_code[0]; C++) {
+              //   " ";
+              // }
+              ptr++;
+              break;
+            case 'D':
+              // Cursor Left
+              SysLog("Cursor Left\n");
+              term.cursor_x -= ansi_code[0];
+              ptr++;
+              break;
+            case 'E':
+              // Cursor Next Line
+              SysLog("Cursor Next Line\n");
+              term.cursor_x = 0;
+              term.cursor_y++;
+              if (term.cursor_y >= term.window_height) {
+                // scroll
+              }
+              ptr++;
+              break;
+            case 'F':
+              // Cursor Previous Line
+              SysLog("Cursor Previous Line\n");
+              term.cursor_x = 0;
+              term.cursor_y -= ansi_code[0];
+              if (term.cursor_y < 0) {
+                term.cursor_y = 0; // prevent y from going below 0
+              }
+              ptr++;
+              break;
+            case 'G':
+              // Cursor Horizontal Absolute	
+              SysLog("Cursor Horizontal Absolute\n");
+              term.cursor_x = ansi_code[0];
+              ptr++;
+              break;
+            case 'H':
+            case 'f':
+              I64 row = 1, col = 1;  // default values
+              // Parse the row number
+              if(ansi_code[0] != 1)
+                row = ansi_code[0];
+              if(ansi_code[1] != 1)
+                col = ansi_code[1];
+            
+              // TODO: This is a hack, dont skip row 0, col 0 (maybe?)
+              if (row == 0 && col == 0) {
+                ptr++; 
+                break;
+              }
+              // SysLog("H or f AFTER row:%d, col:%d, cnt:%d\n", row, col, ansi_param_count);
+
+              if (row > term.window_height)
+                row = term.window_height - 1;
+              if (col > term.window_width)
+                col = term.window_width - 1;
+              // "$$CM,0,0$$";
+              term.cursor_x = col-1;
+              term.cursor_y = row-1;
+              ptr++;
+              break;
+            case 'J':
+              // SysLog("J code, %d  %d\n", ansi_param_count, ansi_code[0]);
+              // Erase in Display
+              if (ansi_code[0] == 0) {
+                // Erase from cursor to end of display
+                // DocDelToNum(Fs->display_doc, Fs->display_doc->cur_entry->line_num);
+              } else if (ansi_code[0] == 1) {
+                // Erase from cursor to beginning of display
+                // DocDelToEntry(Fs->display_doc, Fs->display_doc->cur_entry, FALSE);
+              } else if (ansi_code[0] == 2) {
+                // Erase entire display
+                // DocClear(term.doc);
+                DCFill(term.dc,BLACK);
+                // term.cursor_x = 0;
+                // term.cursor_y = 0;
+                // redraw_needed = TRUE;
+              }
+              ptr++;
+              break;
+            case 'K':
+              // TODO: I have no idea if this actually works
+              SysLog("K code\n");
+              // Erase in Line
+              // CDocEntry *cur_entry = Fs->display_doc->cur_entry;
+              // CDocEntry *next_entry = cur_entry->next;
+            
+              // // Delete the current entry
+              // if (!(cur_entry->de_flags & (DOCEF_HOLD | DOCEF_FILTER_SKIP))) {
+              //   Fs->display_doc->cur_entry = next_entry;
+              //   Fs->display_doc->cur_col = next_entry->min_col;
+              //   DocEntryDel(Fs->display_doc, cur_entry);
+              // }
+
+              // // Create a new entry (line) in its place
+              // CDocEntry *new_entry = DocEntryNewTag(Fs->display_doc, cur_entry, "");
+              // DocInsEntry(Fs->display_doc, new_entry);
+          
+              ptr++;
+              break;
+            case 'L':
+              SysLog("L code\n");
+              ptr++;
+              break;
+            case 'S':
+              // TODO: Scroll Up
+              SysLog("Scroll Up");
+              ptr++;
+              break;
+            case 'T':
+              // TODO: Scroll Down
+              SysLog("Scroll Down");
+              ptr++;
+              break;
+            case 'M':
+              SysLog("Case M\n");
+              term.cursor_y--;
+              ptr++;
+              break;
+            case '?':
+              ptr++;
+              I64 code = 0;
+
+              while (IsDigit(*ptr)) {
+                code = code * 10 + (*ptr - '0');
+                ptr++;
+              }
+              switch (code) {
+                case 25:
+                  if (*ptr == 'l') DocCursor(OFF); // Hide cursor
+                  if (*ptr == 'h') DocCursor(ON); // Show cursor
+                  ptr++; // Move past 'l' or 'h'
+                  break;
+                case 47:
+                  if (*ptr == 'l') SysLog("code 47l\n"); // restore screen
+                  if (*ptr == 'h') SysLog("code 47h\n"); // save screen
+                  ptr++; // Move past 'l' or 'h'
+                  break;
+                case 1049:
+                  if (*ptr == 'l') SysLog("code 1049l\n"); // enables the alternative buffer
+                  if (*ptr == 'h') SysLog("code 1049h\n"); // disables the alternative buffer
+                  ptr++; // Move past 'l' or 'h'
+                  break;
+                default:
+                  ptr++;
+                  break;
+              }
+              break;
+            case 's':
+              SysLog("SaveCurrentCursorPosition\n");
+              ptr++;
+              break;
+            case 'u':
+              SysLog("RestoreCurrentCursorPosition\n");
+              ptr++;
+              break;
+            case 'r':
+              // self.restoreCursorPosition();
+              SysLog("r case \n");
+              ptr++;
+              break;
+            case 'h':
+            case 'l':
+              // TODO: Handle 'h' (set mode) or 'l' (reset mode) codes
+              SysLog("h or l case \n");
+              ptr++; // Skip 'h' or 'l'
+              break;
+            case '=':
+              SysLog("ScreenMode attempt\n");
+              ptr++;
+              break;
+            default:
+              if(!IsDigit(*ptr)) {
+                SysLog("Unknown code: %c\n", *ptr);
+              }
+              ptr++;
+              break;
+        }
+      }
+    }
+    else {
+      // Print the received character
+      HandleControlCodes(*ptr);
+      ptr++;
+    }
+  }
+  if (redraw_needed) {
+    // TerminalDrawIt(term.task, term.task);
+    // DocClear(term.doc);
+
+    // DCFill(,RED);
+    // term.cursor_x = 0;
+    // term.cursor_y = 0;
+    redraw_needed = FALSE;
+  }
+}
+
+U0 TerminalTask() {
+  while (!term.sock_ready) {
+    Sleep(100); // Avoid busy waiting
+  }
+  // This task receives data from the socket and fills the buffer
+	while (!force_disconnect)
+	{
+    term.buffer_len = TCPSocketReceive(term.sock, term.buffer, BUF_SIZE - 1);
+    if (term.buffer_len > 0) {
+      redraw_needed = TRUE;
+      term.buffer[term.buffer_len] = '\0';
+      ANSIParse;
+    } else {
+      "Error: Connection closed by the remote host.\n";
+      break;
+    }
+  }
+}
+
+U0 Telnet(U8 *host, U16 port=TELNET_PORT) {
+
+  term.sock_ready = 0; // Initialize the semaphore
+  term.sock = TelnetOpen(host, port);
+  term.window_width = 80;
+  term.window_height = 25;
+  if (term.sock <= 0) {
+    return;
+  }
+  term.sock_ready = 1; // Signal that the socket is ready
+  term.dc = DCNew(term.window_width, term.window_height);
+  term.doc = Fs->put_doc;
+
+  // Spawn a task to receive data from the socket
+  term.task = Spawn(&TerminalTask, NULL, "Telnet");
+	// term.task->win_inhibit = WIG_USER_TASK_DEFAULT;
+	// LBts(&term.task->display_flags, DISPLAYf_SHOW);
+
+  Fs->draw_it = &TerminalDrawIt;
+
+  StrCopy(Fs->task_title, "TELNET");
+  Fs->border_src  = BDS_CONST;
+  Fs->border_attr = LTGREEN << 4 + DriveTextAttrGet(':') & 15;
+  Fs->text_attr   = BLACK << 4 + WHITE;
+  Fs->title_src = TTS_LOCKED_CONST;
+
+  Fs->win_width = term.window_width;
+  WinHorz((TEXT_COLS / 2) - (Fs->win_width / 2),
+          (TEXT_COLS / 2) - (Fs->win_width / 2) +
+              (Fs->win_width - 1),
+          Fs);
+  Fs->win_height = term.window_height;
+  WinVert((TEXT_ROWS / 2) - (Fs->win_height / 2),
+          (TEXT_ROWS / 2) - (Fs->win_height / 2) +
+              (Fs->win_height - 1),
+          Fs);
+  DocClear;
+
+  // SplashScreen
+  term.buffer_len = LoadSplashScreen("Art/TelnetSplash.ans");
+  if (term.buffer_len > 0) {
+    term.buffer[term.buffer_len] = '\0';
+    // parse the buffer
+    ANSIParse;
+  }
+  else {
+    "Error: Could not load splash screen.\n";
+  }
+  
+  // PopUp if no host is specified
+  if (host == NULL) {
+    try
+    {
+      while (host == NULL) {
+        CHostForm form;
+        TelnetPrompt(&form);
+        host = form.host;
+        port = form.port;
+        DocClear;
+        break;
+      }
+    }
+    catch
+      PutExcept;
+  }
+
+  "$$BG,GREEN$$$$WHITE$$Connected$$FG$$$$BG$$\n";
+  Sleep(1000);
+  DocClear;
+
+  I64 sc;
+  // https://theasciicode.com.ar/ascii-control-characters/escape-ascii-code-27.html
+	try
+	{
+    while (!force_disconnect) {
+      U8 key = KeyGet(&sc);
+      switch (key)
+      {
+        case 0:
+          switch (sc.u8[0])
+          {
+            case SC_CURSOR_LEFT:
+              TCPSocketSendString(term.sock, "\x1B[D");
+              break;
+
+            case SC_CURSOR_RIGHT:
+              TCPSocketSendString(term.sock, "\x1B[C");
+              break;
+
+            case SC_CURSOR_UP:
+              TCPSocketSendString(term.sock, "\x1B[A");
+              break;
+
+            case SC_CURSOR_DOWN:
+              TCPSocketSendString(term.sock, "\x1B[B");
+              break;
+            default:
+              break;
+          }
+          break;
+        case 9:
+          switch (sc.u8[0])
+          {
+            case SC_TAB:
+              TCPSocketSendString(term.sock, "\x09");
+              break;
+            default:
+              break;
+          }
+        case CH_BACKSPACE:
+          TCPSocketSendString(term.sock, "\x08");
+          break;
+        case CH_ESC:
+          TCPSocketSendString(term.sock, "\x1B");
+          break;
+        case CH_SHIFT_ESC:
+          force_disconnect = TRUE;
+          break;
+        // send buffer on enter
+        case '\n':
+          TCPSocketSendString(term.sock, "\r\n");
+
+          break;
+        default:
+          if (key >= ' ' && key <= '~') {
+            // Handle regular keys
+            U8 input_buf[2];
+            input_buf[0] = key;
+            input_buf[1] = '\0';
+            TCPSocketSend(term.sock, input_buf, 1);
+          }
+          break;
+      }
+    }
+  }
+	catch
+		PutExcept;
+
+  Kill(term.task);
+  TCPSocketClose(term.sock);
+  "Telnet connection closed.\n";
+}
+
+// dev server
+Telnet("localhost", 8888);

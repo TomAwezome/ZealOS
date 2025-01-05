@@ -1,0 +1,17 @@
+class Terminal {
+  I64 sock;
+  Bool sock_ready;
+  Bool waiting_for_input;
+  I64 window_width;
+  I64 window_height;
+  CDoc *doc;
+  CTask *task;
+
+  I64 current_color;
+  I64 current_bgcolor;
+  I64 current_row;
+  I64 current_col;
+
+  U8 buffer[BUF_SIZE];
+  I64 buffer_len;
+} term;

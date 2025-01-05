@@ -1,0 +1,259 @@
+Cd(__DIR__);
+#include "TelnetClass"
+#include "TelnetNegotiation"
+
+U8 IsDigit(U8 ch) {
+  return '0' <= ch <= '9';
+}
+U8 IsAlpha(U8 ch) {
+  return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
+}
+class CHostForm {
+  U8 host[256] format "\n\n \t$$DA-P,LEN=255,A=\"Host:%s\"$$\t\n";
+  U16 port format "\t$$DA,LEN=255,A=\"Port:%d\"$$\t\n \n\n";
+};
+
+U0 TelnetPrompt(CHostForm *form) {
+  form->host[0] = 0;
+  form->port = TELNET_PORT;
+  PopUpForm(form);
+}
+
+I64 ANSIArtLoad(U8 *filename, U8 *buffer) {
+  CFile *file = FOpen(filename, "rb");
+  if (!file) {
+    PrintErr("Failed to open file");
+    return -1;
+  }
+
+  // Allocate memory for the buffer based on file size
+  *buffer = MAlloc(file->de.size);
+  if (!(*buffer)) {
+    PrintErr("Failed to allocate memory for the buffer");
+    FClose(file);
+    return -1;
+  }
+
+  // Calculate the number of full blocks to read based on file size and block size
+  I64 full_blocks = file->de.size / BLK_SIZE;
+  I64 remaining_bytes = file->de.size % BLK_SIZE;
+
+  // SysLog("File size: %d, Number of full blocks: %d, Remaining bytes: %d\n", file->de.size, full_blocks, remaining_bytes);
+
+  // Read the full blocks into the buffer
+  I64 i, blocks_read = 0;
+  for (i = 0; i < full_blocks; i++) {
+    blocks_read += FBlkRead(file, buffer + i * BLK_SIZE, i, 1);
+  }
+
+  // Check if there are any remaining bytes in the last block
+  if (remaining_bytes != 0) {
+    // Read the remaining bytes
+    U8 temp_buffer[BLK_SIZE];
+    if (FBlkRead(file, temp_buffer, full_blocks, 1)) {
+      blocks_read++;
+      MemCopy(buffer + full_blocks * BLK_SIZE, temp_buffer, remaining_bytes);
+    }
+  }
+
+  I64 file_size = file->de.size;
+  FClose(file);
+
+  if (blocks_read != (full_blocks + (remaining_bytes != 0))) {
+    PrintErr("Failed to read all the blocks");
+    return -1;
+  }
+
+  return file_size;  // Return the number of bytes read
+}
+
+public U8 *ANSIArtBrowser()
+{
+  // would be nice to keep last opened file path in memory...
+  // U8 *selectedFile = PopUpPickFile(CatPrint(__DIR__,"/Art"))
+  // FIXME: dont hardcode path
+  U8 *selectedFile = PopUpPickFile("::/Home/Net/Programs/Telnet/Art");
+  if (selectedFile) {
+    if (StrCompare(selectedFile, "")) {
+      // SysLog(selectedFile);
+      StrCopy(Fs->task_title, selectedFile);
+      return selectedFile;
+    }
+  }
+  // Handle the case where no file was selected, if necessary.
+  return NULL;
+}
+
+U0 DocCursorPosSet(CDoc *doc, I64 x, I64 y)
+{
+	Bool unlock;
+	
+	unlock = DocLock(doc);
+	if (doc->doc_signature == DOC_SIGNATURE_VAL)
+	{
+		doc->x = x;
+		doc->y = y;
+		DocRecalc(doc, RECALCt_FIND_CURSOR);
+		if (unlock)
+			DocUnlock(doc);
+	}
+}
+
+U0 DocRelCursorPosSet(CDoc *doc, I64 dx, I64 dy) {
+    Bool unlock;
+
+    if (!doc && !(doc = DocPut)) {
+        return;
+    }
+
+    unlock = DocLock(doc);
+
+    doc->x += dx;
+    doc->y += dy;
+
+    DocRecalc(doc, RECALCt_FIND_CURSOR);
+
+    if (unlock)
+        DocUnlock(doc);
+}
+
+// function to increase/decrease col or row
+// U0 SetPos(I64 col, I64 row, Bool relativeCol=TRUE) {
+//   if (col < 0) {
+//     if (relativeCol)
+//       term.current_col += col;
+//     else
+//       term.current_col = col;
+//     if (term.current_col > term.window_width)
+//       term.current_col = 1;
+//   }
+//   if (row < 0) {
+//     if (relativeCol)
+//       term.current_row += row;
+//     else
+//       term.current_row = row;
+//     if (term.current_row > term.window_height)
+//       term.current_row = 1;
+//   }
+// }
+
+// public I64 ANSIArtBrowser()
+// {
+//   CDirEntry *tmpde1 = NULL, *tmpde2;
+//   CDoc *doc = DocNew;
+//   I64 res = 0;
+//   I64 res2 = 0;
+
+//   DocPrint(doc, "$$LTBLUE$$\n\n");
+
+//   tmpde1 = FilesFind("Art/", 1);
+
+//   if (tmpde1)
+//   {
+//     while (tmpde1)
+//     {
+//       tmpde2 = tmpde1->next;
+//       res++;
+      
+//       DocPrint(doc, "  $$MU,\"%d.%s\",LE=0x%X$$\n", res, tmpde1->name, tmpde1->name);
+//       DirEntryDel(tmpde1);
+      
+//       tmpde1 = tmpde2;
+//     }
+//   }
+
+//   DocPrint(doc, "\n\n$$BT+CX,\"CANCEL\",LE=0$$\n\n");
+//   res2 = PopUpMenu(doc);
+//   DocDel(doc);
+
+
+//   return MStrPrint("%Q%Q", "Art/", res2);
+// }
+
+// U0 SetTermColor(CBGR24 *color) {
+//   DocPrint(term.doc, "$$TC,0x%06X$$\n", color->bgr);
+// }
+
+// U0 SetTermBGColor(CBGR24 *color) {
+//   DocPrint(term.doc, "$$BC,0x%06X$$\n", color->bgr);
+// }
+
+// U0 SetTermPalette(CBGR24 *palette) {
+//   I64 i;
+//   for (i = 0; i < COLORS_NUM; i++) {
+//     DocPrint(term.doc, "$$PC,%d,%d,%d,0x%06X$$\n", i, palette[i].r, palette[i].g, palette[i].bgr);
+//   }
+// }
+
+// U0 SetTermDarkMode(Bool dark) {
+//   if (dark) {
+//     DocPrint(term.doc, "$$DM,1$$\n");
+//   }
+//   else {
+//     DocPrint(term.doc, "$$DM,0$$\n");
+//   }
+// }
+
+// U0 SetTermOriginalColors(Bool original) {
+//   if (original) {
+//     DocPrint(term.doc, "$$OC,1$$\n");
+//   }
+//   else {
+//     DocPrint(term.doc, "$$OC,0$$\n");
+//   }
+// }
+
+// function to clear screen and move cursor to 0,0
+// U0 Reset() {
+//   DocPrint(term.doc, "$$CM+LX+PRY,LE=0,RE=0$$");
+//   DocClear(term.doc);
+// }
+
+// // function to move cursor to 0,0
+// U0 Home() {
+//   DocPrint(term.doc, "$$CM+LX+PRY,LE=0,RE=0$$");
+// }
+
+// // function to move cursor to 0,0 and clear screen
+// U0 ClearScreen() {
+//   DocPrint(term.doc, "$$CM+LX+PRY,LE=0,RE=0$$");
+//   DocClear(term.doc);
+// }
+
+// // function to move cursor to 0,0 and clear line
+// U0 ClearLine() {
+//   DocPrint(term.doc, "$$CM+LX+PRY,LE=0,RE=1$$");
+// }
+
+// // function to move cursor to 0,0 and clear line
+// U0 ClearLineRight() {
+//   DocPrint(term.doc, "$$CM+LX+PRY,LE=1,RE=0$$");
+// }
+
+// // function to move cursor to 0,0 and clear line
+// U0 ClearLineLeft() {
+//   DocPrint(term.doc, "$$CM+LX+PRY,LE=0,RE=1$$");
+// }
+
+// // function to move cursor to 0,0 and clear line
+// U0 ClearLineAll() {
+//   DocPrint(term.doc, "$$CM+LX+PRY,LE=1,RE=1$$");
+
+// Placeholder for the full ANSI text styling
+// if (ansi_code[m] <= 10) {
+//   switch (ansi_code[m]) {
+//     case 0: "$$BG,BLACK$$$$WHITE$$"; isBright = FALSE; break; // reset
+//     case 1: isBright = TRUE; break;
+//     case 2: isBright = FALSE; break;
+//     // case 0: "$$BG$$$$FG$$"; break; // reset
+//     // case 1: ""; break; // TODO: bold
+//     // case 2: ""; break; // TODO: dim
+//     // case 3: ""; break; // TODO: italic
+//     // case 4: "$$UL,1$$" + string + "$$UL,0$$"; break; // TODO: underline
+//     // case 5: "$$"; break; // TODO: blink
+//     // case 6: ""; break; // TODO: fast blink
+//     // case 7: "$$IV,1$$" + string + "$$IV,0$$"; break; // TODO: invert
+//     // case 8: ""; break; // TODO: hide (rare)
+//     // case 9: ""; break; // TODO: strikethrough
+//     // case 10: ""; break; // TODO: primary font
+//   }
