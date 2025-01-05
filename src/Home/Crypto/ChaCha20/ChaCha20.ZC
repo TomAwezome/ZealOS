@@ -1,0 +1,181 @@
+
+// Rotating bits left
+U32 RotL32(U32 x, I32 n) {
+	return (x << n) | (x >> (32 - n));
+}
+
+// Packing bytes into a 32-bit unsigned integer
+U32 Pack4(U8 *a) {
+    U32 res = 0;
+    res |= a[0](U32) << 0 * 8;
+    res |= a[1](U32) << 1 * 8;
+    res |= a[2](U32) << 2 * 8;
+    res |= a[3](U32) << 3 * 8;
+    return res;
+}
+
+// Unpacking a 32-bit unsigned integer into bytes
+U0 UnPack4(U32 src, U8 *dst) {
+    dst[0] = (src >> 0 * 8) & 0xff;
+    dst[1] = (src >> 1 * 8) & 0xff;
+    dst[2] = (src >> 2 * 8) & 0xff;
+    dst[3] = (src >> 3 * 8) & 0xff;
+}
+
+// ChaCha20 context structure
+class chacha20_context {
+    U32 state[16];
+    U32 keystream32[16];
+    U8 key[32];
+    U8 nonce[12];
+    U64 counter;
+    U32 position;
+};
+
+U8 *magic_constant = "expand 32-byte k";
+// Initializing the ChaCha20 block
+U0 chacha20_init_block(chacha20_context *ctx, U8 *key, U8 *nonce) {
+    MemCopy(ctx->key, key, 32);
+    MemCopy(ctx->nonce, nonce, 12);
+
+    ctx->state[0] = Pack4(magic_constant + 0 * 4);
+	ctx->state[1] = Pack4(magic_constant + 1 * 4);
+	ctx->state[2] = Pack4(magic_constant + 2 * 4);
+	ctx->state[3] = Pack4(magic_constant + 3 * 4);
+	ctx->state[4] = Pack4(key + 0 * 4);
+	ctx->state[5] = Pack4(key + 1 * 4);
+	ctx->state[6] = Pack4(key + 2 * 4);
+	ctx->state[7] = Pack4(key + 3 * 4);
+	ctx->state[8] = Pack4(key + 4 * 4);
+	ctx->state[9] = Pack4(key + 5 * 4);
+	ctx->state[10] = Pack4(key + 6 * 4);
+	ctx->state[11] = Pack4(key + 7 * 4);
+	// 64 bit counter initialized to zero by default.
+	ctx->state[12] = 0;
+	ctx->state[13] = Pack4(nonce + 0 * 4);
+	ctx->state[14] = Pack4(nonce + 1 * 4);
+	ctx->state[15] = Pack4(nonce + 2 * 4);
+
+	MemCopy(ctx->nonce, nonce, 12);
+}
+
+// Setting the counter for the ChaCha20 block
+U0 chacha20_block_set_counter(chacha20_context *ctx, U64 counter) {
+	ctx->state[12] = counter(U32);
+	ctx->state[13] = Pack4(ctx->nonce + 0 * 4) + (counter >> 32)(U32);
+}
+
+U0 CHACHA20_QUARTERROUND(U32 *x, I32 a, I32 b, I32 c, I32 d) {
+    x[a] += x[b]; x[d] = RotL32(x[d] ^ x[a], 16);
+    x[c] += x[d]; x[b] = RotL32(x[b] ^ x[c], 12);
+    x[a] += x[b]; x[d] = RotL32(x[d] ^ x[a], 8);
+    x[c] += x[d]; x[b] = RotL32(x[b] ^ x[c], 7);
+}
+
+// Generating the next ChaCha20 block
+U0 chacha20_block_next(chacha20_context *ctx) {
+	I32 i;
+    for (i = 0; i < 16; i++) ctx->keystream32[i] = ctx->state[i];
+
+    for (i = 0; i < 10; i++) {
+        CHACHA20_QUARTERROUND(ctx->keystream32, 0, 4, 8, 12);
+        CHACHA20_QUARTERROUND(ctx->keystream32, 1, 5, 9, 13);
+        CHACHA20_QUARTERROUND(ctx->keystream32, 2, 6, 10, 14);
+        CHACHA20_QUARTERROUND(ctx->keystream32, 3, 7, 11, 15);
+        CHACHA20_QUARTERROUND(ctx->keystream32, 0, 5, 10, 15);
+        CHACHA20_QUARTERROUND(ctx->keystream32, 1, 6, 11, 12);
+        CHACHA20_QUARTERROUND(ctx->keystream32, 2, 7, 8, 13);
+        CHACHA20_QUARTERROUND(ctx->keystream32, 3, 4, 9, 14);
+    }
+    for (i = 0; i < 16; i++) ctx->keystream32[i] += ctx->state[i];
+
+    U32 *counter = ctx->state + 12;
+    counter[0]++;
+    if (counter[0] == 0) {
+        counter[1]++;
+        if (counter[1] == 0) {
+            // Handle the counter overflow, e.g., print an error message
+            Print("Counter overflow detected\n");
+			// Exit();
+        }
+    }
+}
+
+// Initializing the ChaCha20 context
+U0 chacha20_init_context(chacha20_context *ctx, U8 *key, U8 *nonce, U64 counter) {
+	MemSet(ctx, 0, sizeof(chacha20_context));
+
+	chacha20_init_block(ctx, key, nonce);
+	chacha20_block_set_counter(ctx, counter);
+
+	ctx->counter = counter;
+	ctx->position = 64;
+}
+
+
+// XOR operation for ChaCha20
+U0 chacha20_xor(chacha20_context *ctx, U8 *bytes, U64 n_bytes) {
+    U8 *keystream8 = ctx->keystream32(U8*);
+	// was U64 for some reason?
+	I64 i;
+    for (i = 0; i < n_bytes; i++) {
+        if (ctx->position >= 64) {
+            chacha20_block_next(ctx);
+            ctx->position = 0;
+        }
+        bytes[i] ^= keystream8[ctx->position++];
+    }
+}
+
+
+// Define key and nonce. Ensure they are the correct size (key: 32 bytes, nonce: 12 bytes).
+U8 key[32] = {
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+	0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F
+};
+U8 nonce[12] = {
+	0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x4A,
+	0x00, 0x00, 0x00, 0x00
+};
+
+U0 Main() {
+	I64 i;
+    // Define the plaintext message
+    U8 plaintext[16] = "Hello, TempleOS!";
+    U64 plaintext_len = sizeof(plaintext);
+
+    // Allocate space for the ciphertext (same size as plaintext)
+    U8 ciphertext[16];
+
+    // Initialize ChaCha20 context
+    chacha20_context ctx;
+    chacha20_init_context(&ctx, key, nonce, 0); // Counter starts at 0
+
+    // Encrypt the plaintext
+    MemCopy(ciphertext, plaintext, plaintext_len); // Copy plaintext to ciphertext buffer
+    chacha20_xor(&ctx, ciphertext, plaintext_len); // Perform XOR operation
+
+    // Output the encrypted message
+    "Encrypted Message: ";
+    for (i = 0; i < plaintext_len; i++) {
+        "%02X ", ciphertext[i];
+    }
+    "\n";
+
+    // Decrypt the ciphertext (same operation as encryption)
+    chacha20_init_context(&ctx, key, nonce, 0); // Reinitialize context for decryption
+    U8 decrypted[plaintext_len];
+    MemCopy(decrypted, ciphertext, plaintext_len); // Copy ciphertext to decrypted buffer
+    chacha20_xor(&ctx, decrypted, plaintext_len); // Perform XOR operation
+
+    // Output the decrypted message
+    "Decrypted Message: ";
+    for (i = 0; i < plaintext_len; i++) {
+        "%c", decrypted[i];
+    }
+    "\n";
+}
+
+Main;
