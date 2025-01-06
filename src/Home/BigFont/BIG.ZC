@@ -1,0 +1,738 @@
+U0 InitFontMap() {
+	fontMap[0].character = 'A';
+	fontMap[0].rows[0] = "  ÿÿ    ";
+	fontMap[0].rows[1] = " ÿÿÿÿ   ";
+	fontMap[0].rows[2] = "ÿÿ  ÿÿ  ";
+	fontMap[0].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[0].rows[4] = "ÿÿÿÿÿÿ  ";
+	fontMap[0].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[0].rows[6] = "ÿÿ  ÿÿ  ";
+	fontMap[0].rows[7] = "ÿÿ  ÿÿ  ";
+
+	fontMap[1].character = 'B';
+	fontMap[1].rows[0] = "ÿÿÿÿÿÿ  ";
+	fontMap[1].rows[1] = " ÿÿ  ÿÿ ";
+	fontMap[1].rows[2] = " ÿÿ  ÿÿ ";
+	fontMap[1].rows[3] = " ÿÿÿÿÿ  ";
+	fontMap[1].rows[4] = " ÿÿ  ÿÿ ";
+	fontMap[1].rows[5] = " ÿÿ  ÿÿ ";
+	fontMap[1].rows[6] = "ÿÿÿÿÿÿ  ";
+	fontMap[1].rows[7] = "        ";
+
+	fontMap[2].character = 'C';
+	fontMap[2].rows[0] = "  ÿÿÿÿ  ";
+	fontMap[2].rows[1] = " ÿÿ  ÿÿ ";
+	fontMap[2].rows[2] = "ÿÿ      ";
+	fontMap[2].rows[3] = "ÿÿ      ";
+	fontMap[2].rows[4] = "ÿÿ      ";
+	fontMap[2].rows[5] = " ÿÿ  ÿÿ ";
+	fontMap[2].rows[6] = "  ÿÿÿÿ  ";
+	fontMap[2].rows[7] = "        ";
+
+	fontMap[3].character = 'D';
+	fontMap[3].rows[0] = "ÿÿÿÿÿÿ  ";
+	fontMap[3].rows[1] = " ÿÿ ÿÿ  ";
+	fontMap[3].rows[2] = " ÿÿ  ÿÿ ";
+	fontMap[3].rows[3] = " ÿÿ  ÿÿ ";
+	fontMap[3].rows[4] = " ÿÿ  ÿÿ ";
+	fontMap[3].rows[5] = " ÿÿ ÿÿ  ";
+	fontMap[3].rows[6] = "ÿÿÿÿÿ   ";
+	fontMap[3].rows[7] = "        ";
+
+	fontMap[4].character = 'E';
+	fontMap[4].rows[0] = "ÿÿÿÿÿÿÿ ";
+	fontMap[4].rows[1] = " ÿÿ   ÿ ";
+	fontMap[4].rows[2] = " ÿÿ ÿ   ";
+	fontMap[4].rows[3] = " ÿÿÿÿ   ";
+	fontMap[4].rows[4] = " ÿÿ ÿ   ";
+	fontMap[4].rows[5] = " ÿÿ   ÿ ";
+	fontMap[4].rows[6] = "ÿÿÿÿÿÿÿ ";
+	fontMap[4].rows[7] = "        ";
+
+	fontMap[5].character = 'F';
+	fontMap[5].rows[0] = "ÿÿÿÿÿÿÿ ";
+	fontMap[5].rows[1] = " ÿÿ   ÿ ";
+	fontMap[5].rows[2] = " ÿÿ ÿ   ";
+	fontMap[5].rows[3] = " ÿÿÿÿ   ";
+	fontMap[5].rows[4] = " ÿÿ ÿ   ";
+	fontMap[5].rows[5] = " ÿÿ     ";
+	fontMap[5].rows[6] = "ÿÿÿÿ    ";
+	fontMap[5].rows[7] = "        ";
+
+	fontMap[6].character = 'G';
+	fontMap[6].rows[0] = "  ÿÿÿÿ  ";
+	fontMap[6].rows[1] = " ÿÿ  ÿÿ ";
+	fontMap[6].rows[2] = "ÿÿ      ";
+	fontMap[6].rows[3] = "ÿÿ      ";
+	fontMap[6].rows[4] = "ÿÿ  ÿÿÿ ";
+	fontMap[6].rows[5] = " ÿÿ  ÿÿ ";
+	fontMap[6].rows[6] = " ÿÿÿÿÿÿ ";
+	fontMap[6].rows[7] = "        ";
+
+	fontMap[7].character = 'H';
+	fontMap[7].rows[0] = "ÿÿ  ÿÿ   ";
+	fontMap[7].rows[1] = "ÿÿ  ÿÿ   ";
+	fontMap[7].rows[2] = "ÿÿ  ÿÿ   ";
+	fontMap[7].rows[3] = "ÿÿÿÿÿÿ   ";
+	fontMap[7].rows[4] = "ÿÿÿÿÿÿ   ";
+	fontMap[7].rows[5] = "ÿÿ  ÿÿ   ";
+	fontMap[7].rows[6] = "ÿÿ  ÿÿ   ";
+	fontMap[7].rows[7] = "ÿÿ  ÿÿ   ";
+
+	fontMap[8].character = 'I';
+	fontMap[8].rows[0] = " ÿÿÿÿ    ";
+	fontMap[8].rows[1] = "  ÿÿ     ";
+	fontMap[8].rows[2] = "  ÿÿ     ";
+	fontMap[8].rows[3] = "  ÿÿ     ";
+	fontMap[8].rows[4] = "  ÿÿ     ";
+	fontMap[8].rows[5] = "  ÿÿ     ";
+	fontMap[8].rows[6] = " ÿÿÿÿ    ";
+	fontMap[8].rows[7] = "         ";
+
+	fontMap[9].character = 'J';
+	fontMap[9].rows[0] = "   ÿÿÿÿ  ";
+	fontMap[9].rows[1] = "    ÿÿ   ";
+	fontMap[9].rows[2] = "    ÿÿ   ";
+	fontMap[9].rows[3] = "    ÿÿ   ";
+	fontMap[9].rows[4] = "    ÿÿ   ";
+	fontMap[9].rows[5] = "ÿÿ  ÿÿ   ";
+	fontMap[9].rows[6] = "ÿÿ  ÿÿ   ";
+	fontMap[9].rows[7] = " ÿÿÿÿ    ";
+
+	fontMap[10].character = 'K';
+	fontMap[10].rows[0] = "ÿÿÿ  ÿÿ ";
+	fontMap[10].rows[1] = " ÿÿ  ÿÿ ";
+	fontMap[10].rows[2] = " ÿÿ ÿÿ  ";
+	fontMap[10].rows[3] = " ÿÿÿÿ   ";
+	fontMap[10].rows[4] = " ÿÿ ÿÿ  ";
+	fontMap[10].rows[5] = " ÿÿ  ÿÿ ";
+	fontMap[10].rows[6] = "ÿÿÿ  ÿÿ ";
+	fontMap[10].rows[7] = "        ";
+
+	fontMap[11].character = 'L';
+	fontMap[11].rows[0] = "ÿÿÿÿ    ";
+	fontMap[11].rows[1] = " ÿÿ     ";
+	fontMap[11].rows[2] = " ÿÿ     ";
+	fontMap[11].rows[3] = " ÿÿ     ";
+	fontMap[11].rows[4] = " ÿÿ   ÿ ";
+	fontMap[11].rows[5] = " ÿÿ  ÿÿ ";
+	fontMap[11].rows[6] = "ÿÿÿÿÿÿÿ ";
+	fontMap[11].rows[7] = "        ";
+
+	fontMap[12].character = 'M';
+	fontMap[12].rows[0] = "ÿÿ   ÿÿ ";
+	fontMap[12].rows[1] = "ÿÿÿÜÿÿÿ ";
+	fontMap[12].rows[2] = "ÿÿ ÿ ÿÛ ";
+	fontMap[12].rows[3] = "ÿÿ   ÿÿ ";
+	fontMap[12].rows[4] = "ÿÿ   ÿÿ ";
+	fontMap[12].rows[5] = "ÿÿ   ÿÿ ";
+	fontMap[12].rows[6] = "ÿÿ   ÿÿ ";
+	fontMap[12].rows[7] = "        ";
+
+	fontMap[13].character = 'N';
+	fontMap[13].rows[0] = "ÿÿ   ÿÿ ";
+	fontMap[13].rows[1] = "ÿÿÿ  ÿÿ ";
+	fontMap[13].rows[2] = "ÿÿÿÿ ÿÿ ";
+	fontMap[13].rows[3] = "ÿÿ ÿÿÿÿ ";
+	fontMap[13].rows[4] = "ÿÿ  ÿÿÿ ";
+	fontMap[13].rows[5] = "ÿÿ  ÿÿÿ ";
+	fontMap[13].rows[6] = "ÿÿ  ÿÿÿ ";
+	fontMap[13].rows[7] = "        ";
+
+	fontMap[14].character = 'O';
+	fontMap[14].rows[0] = "  ÿÿÿ   ";
+	fontMap[14].rows[1] = " ÿÿ ÿÿ  ";
+	fontMap[14].rows[2] = "ÿÿ   ÿÿ ";
+	fontMap[14].rows[3] = "ÿÿ   ÿÿ ";
+	fontMap[14].rows[4] = "ÿÿ   ÿÿ ";
+	fontMap[14].rows[5] = " ÿÿ ÿÿ  ";
+	fontMap[14].rows[6] = "  ÿÿÿ   ";
+	fontMap[14].rows[7] = "        ";
+
+	fontMap[15].character = 'P';
+	fontMap[15].rows[0] = "ÿÿÿÿÿÿ  ";
+	fontMap[15].rows[1] = " ÿÿ  ÿÿ ";
+	fontMap[15].rows[2] = " ÿÿ  ÿÿ ";
+	fontMap[15].rows[3] = " Ûÿÿÿÿ  ";
+	fontMap[15].rows[4] = " ÿÿ     ";
+	fontMap[15].rows[5] = " ÿÿ     ";
+	fontMap[15].rows[6] = "ÿÿÿÿ    ";
+	fontMap[15].rows[7] = "        ";
+
+	fontMap[16].character = 'Q';
+	fontMap[16].rows[0] = " ÿÿÿÿ   ";
+	fontMap[16].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[16].rows[2] = "ÿÿ  ÿÿ  ";
+	fontMap[16].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[16].rows[4] = "ÿÿ ÿÿÿ  ";
+	fontMap[16].rows[5] = " ÿÿÿÿ   ";
+	fontMap[16].rows[6] = "   ÿÿÿ  ";
+	fontMap[16].rows[7] = "        ";
+
+	fontMap[17].character = 'R';
+	fontMap[17].rows[0] = "ÿÿÿÿÿÿ  ";
+	fontMap[17].rows[1] = " ÿÿ  ÿÿ ";
+	fontMap[17].rows[2] = " Ûÿ  ÿÿ ";
+	fontMap[17].rows[3] = " ÿÿÿÿÿ  ";
+	fontMap[17].rows[4] = " ÿÿÿÿ   ";
+	fontMap[17].rows[5] = " ÿÿ ÿÿ  ";
+	fontMap[17].rows[6] = "ÿÿÿ  ÿÿ ";
+	fontMap[17].rows[7] = "   ";
+
+	fontMap[18].character = 'S';
+	fontMap[18].rows[0] = " ÿÿÿÿ   ";
+	fontMap[18].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[18].rows[2] = "ÿÿÿ     ";
+	fontMap[18].rows[3] = "  ÿÿÿ   ";
+	fontMap[18].rows[4] = "   ÿÿÿ  ";
+	fontMap[18].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[18].rows[6] = " ÿÿÿÿ   ";
+	fontMap[18].rows[7] = "        ";
+
+	fontMap[19].character = 'T';
+	fontMap[19].rows[0] = "ÿÿÿÿÿÿ  ";
+	fontMap[19].rows[1] = "ÿ ÿÿ ÿ  ";
+	fontMap[19].rows[2] = "  ÿÿ    ";
+	fontMap[19].rows[3] = "  ÿÿ    ";
+	fontMap[19].rows[4] = "  ÿÿ    ";
+	fontMap[19].rows[5] = "  ÿÿ    ";
+	fontMap[19].rows[6] = " ÿÿÿÿ   ";
+	fontMap[19].rows[7] = "        ";
+
+	fontMap[20].character = 'U';
+	fontMap[20].rows[0] = "ÿÿ  ÿÿ  ";
+	fontMap[20].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[20].rows[2] = "ÿÿ  ÿÿ  ";
+	fontMap[20].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[20].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[20].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[20].rows[6] = "ÿÿÿÿÿÿ  ";
+	fontMap[20].rows[7] = "        ";
+
+	fontMap[21].character = 'V';
+	fontMap[21].rows[0] = "ÿÿ  ÿÿ  ";
+	fontMap[21].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[21].rows[2] = "ÿÿ  ÿÿ  ";
+	fontMap[21].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[21].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[21].rows[5] = " ÿÿÿÿ   ";
+	fontMap[21].rows[6] = "  ÿÿ    ";
+	fontMap[21].rows[7] = "        ";
+
+	fontMap[22].character = 'W';
+	fontMap[22].rows[0] = "ÿÿ   ÿÿ ";
+	fontMap[22].rows[1] = "ÿÿ   ÿÿ ";
+	fontMap[22].rows[2] = "ÿÿ   ÿÿ ";
+	fontMap[22].rows[3] = "ÿÿ ÿ ÿÿ ";
+	fontMap[22].rows[4] = "ÿÿÿÿÿÿÿ ";
+	fontMap[22].rows[5] = "ÿÿÿ ÿÿÿ ";
+	fontMap[22].rows[6] = "ÿÿ   ÿÿ ";
+	fontMap[22].rows[7] = "        ";
+
+	fontMap[23].character = 'X';
+	fontMap[23].rows[0] = "ÿÿ   ÿÿ ";
+	fontMap[23].rows[1] = "ÿÿ   ÿÿ ";
+	fontMap[23].rows[2] = " ÿÿ ÿÿ  ";
+	fontMap[23].rows[3] = "  ÿÿÿ   ";
+	fontMap[23].rows[4] = " ÿÿ ÿÿ  ";
+	fontMap[23].rows[5] = "ÿÿ   ÿÿ ";
+	fontMap[23].rows[6] = "ÿÿ   ÿÿ ";
+	fontMap[23].rows[7] = "        ";
+
+	fontMap[24].character = 'Y';
+	fontMap[24].rows[0] = "ÿÿ  ÿÿ  ";
+	fontMap[24].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[24].rows[2] = "ÿÿ  ÿÿ  ";
+	fontMap[24].rows[3] = " ÿÿÿÿ   ";
+	fontMap[8].rows[7] = "   ÿÿ    ";
+	fontMap[8].rows[7] = "   ÿÿ    ";
+	fontMap[8].rows[7] = "  ÿÿÿÿ   ";
+	fontMap[8].rows[7] = "         ";
+
+	fontMap[25].character = 'Z';
+	fontMap[25].rows[0] = "ÿÿÿÿÿÿÿ ";
+	fontMap[25].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[25].rows[2] = "ÿ  ÿÿ   ";
+	fontMap[25].rows[3] = "  ÿÿ    ";
+	fontMap[25].rows[4] = " ÿÿ   ÿ ";
+	fontMap[25].rows[5] = "ÿÿ   ÿÿ ";
+	fontMap[25].rows[6] = "ÿÿÿÿÿÿÿ ";
+	fontMap[25].rows[7] = "        ";
+
+	fontMap[26].character = ' ';
+	fontMap[26].rows[0] = "        ";
+	fontMap[26].rows[1] = "        ";
+	fontMap[26].rows[2] = "        ";
+	fontMap[26].rows[3] = "        ";
+	fontMap[26].rows[4] = "        ";
+	fontMap[26].rows[5] = "        ";
+	fontMap[26].rows[6] = "        ";
+	fontMap[26].rows[7] = "        ";
+
+	fontMap[27].character = ',';
+	fontMap[27].rows[0] = "        ";
+	fontMap[27].rows[1] = "        ";
+	fontMap[27].rows[2] = "        ";
+	fontMap[27].rows[3] = "        ";
+	fontMap[27].rows[4] = "        ";
+	fontMap[27].rows[5] = " ÿÿÿ    ";
+	fontMap[27].rows[6] = "  ÿÿ    ";
+	fontMap[27].rows[7] = " ÿÿ     ";
+
+	fontMap[28].character = '.';
+	fontMap[28].rows[0] = "        ";
+	fontMap[28].rows[1] = "        ";
+	fontMap[28].rows[2] = "        ";
+	fontMap[28].rows[3] = "        ";
+	fontMap[28].rows[4] = "  ÿÿ    ";
+	fontMap[28].rows[5] = "  ÿÿ    ";
+	fontMap[28].rows[6] = "        ";
+	fontMap[28].rows[7] = "        ";
+
+
+	fontMap[29].character = '&';
+	fontMap[29].rows[0] = "  ÿÿÿ   ";
+	fontMap[29].rows[1] = " ÿÿ ÿÿ  ";
+	fontMap[29].rows[2] = "  ÿÿÿ   ";
+	fontMap[29].rows[3] = " ÿÿÿ ÿÿ ";
+	fontMap[29].rows[4] = "ÿÿ ÿÿÿ  ";
+	fontMap[29].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[29].rows[6] = " ÿÿÿ ÿÿ ";
+	fontMap[29].rows[7] = "        ";
+
+	fontMap[30].character = '?';
+	fontMap[30].rows[0] = " ÿÿÿÿ   ";
+	fontMap[30].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[30].rows[2] = "    ÿÿ  ";
+	fontMap[30].rows[3] = "   ÿÿ   ";
+	fontMap[30].rows[4] = "  ÿÿ    ";
+	fontMap[30].rows[5] = "        ";
+	fontMap[30].rows[6] = "  ÿÿ    ";
+	fontMap[30].rows[7] = "        ";
+
+	fontMap[31].character = '!';
+	fontMap[31].rows[0] = "  ÿÿ    ";
+	fontMap[31].rows[1] = " ÿÿÿÿ   ";
+	fontMap[31].rows[2] = " ÿÿÿÿ   ";
+	fontMap[31].rows[3] = "  ÿÿ    ";
+	fontMap[31].rows[4] = "  ÿÿ    ";
+	fontMap[31].rows[5] = "        ";
+	fontMap[31].rows[6] = "  ÿÿ    ";
+	fontMap[31].rows[7] = "        ";
+
+	fontMap[32].character = ':';
+	fontMap[32].rows[0] = "        ";
+	fontMap[32].rows[1] = "        ";
+	fontMap[32].rows[2] = "  ÿÿ    ";
+	fontMap[32].rows[3] = "  ÿÿ    ";
+	fontMap[32].rows[4] = "        ";
+	fontMap[32].rows[5] = "  ÿÿ    ";
+	fontMap[32].rows[6] = "  ÿÿ    ";
+	fontMap[32].rows[7] = "        ";
+
+	fontMap[33].character = '#';
+	fontMap[33].rows[0] = " ÿÿ ÿÿ  ";
+	fontMap[33].rows[1] = " ÿÿ ÿÿ  ";
+	fontMap[33].rows[2] = " ÿÿ ÿÿ  ";
+	fontMap[33].rows[3] = "ÿÿÿÿÿÿÿ ";
+	fontMap[33].rows[4] = " ÿÿ ÿÿ  ";
+	fontMap[33].rows[5] = "ÿÿÿÿÿÿÿ ";
+	fontMap[33].rows[6] = " ÿÿ ÿÿ  ";
+	fontMap[33].rows[7] = " ÿÿ ÿÿ  ";
+
+	fontMap[34].character = '@';
+	fontMap[34].rows[0] = " ÿÿÿÿÿ  ";
+	fontMap[34].rows[1] = "ÿÿ   ÿÿ ";
+	fontMap[34].rows[2] = "ÿÿ ÿÿÿÿ ";
+	fontMap[34].rows[3] = "ÿÿ ÿÿÿÿ ";
+	fontMap[34].rows[4] = "ÿÿ ÿÿÿÿ ";
+	fontMap[34].rows[5] = "ÿÿ      ";
+	fontMap[34].rows[6] = " ÿÿÿÿ   ";
+	fontMap[34].rows[7] = "        ";
+
+	fontMap[35].character = '1';
+	fontMap[35].rows[0] = "  ÿÿ    ";
+	fontMap[35].rows[1] = "ÿÿÿÿ    ";
+	fontMap[35].rows[2] = "  ÿÿ    ";
+	fontMap[35].rows[3] = "  ÿÿ    ";
+	fontMap[35].rows[4] = "  ÿÿ    ";
+	fontMap[35].rows[5] = "  ÿÿ    ";
+	fontMap[35].rows[6] = "ÿÿÿÿÿÿ  ";
+	fontMap[35].rows[7] = "   ";
+
+	fontMap[36].character = '2';
+	fontMap[36].rows[0] = " ÿÿÿÿ   ";
+	fontMap[36].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[36].rows[2] = "    ÿÿ  ";
+	fontMap[36].rows[3] = "  ÿÿÿ   ";
+	fontMap[36].rows[4] = " ÿÿ     ";
+	fontMap[36].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[36].rows[6] = "ÿÿÿÿÿÿ  ";
+	fontMap[36].rows[7] = "        ";
+
+	fontMap[37].character = '3';
+	fontMap[37].rows[0] = " ÿÿÿÿ   ";
+	fontMap[37].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[37].rows[2] = "    ÿÿ  ";
+	fontMap[37].rows[3] = "  ÿÿÿ   ";
+	fontMap[37].rows[4] = "    ÿÿ  ";
+	fontMap[37].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[37].rows[6] = " ÿÿÿÿ   ";
+	fontMap[37].rows[7] = "        ";
+
+	fontMap[38].character = '4';
+	fontMap[38].rows[0] = "   ÿÿÿ  ";
+	fontMap[38].rows[1] = "  ÿÿÿÿ  ";
+	fontMap[38].rows[2] = " ÿÿ ÿÿ  ";
+	fontMap[38].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[38].rows[4] = "ÿÿÿÿÿÿÿ ";
+	fontMap[38].rows[5] = "    ÿÿ  ";
+	fontMap[38].rows[6] = "    ÿÿ  ";
+	fontMap[38].rows[7] = "        ";
+
+	fontMap[39].character = '5';
+	fontMap[39].rows[0] = "ÿÿÿÿÿÿ  ";
+	fontMap[39].rows[1] = "ÿÿ      ";
+	fontMap[39].rows[2] = "ÿÿÿÿÿ   ";
+	fontMap[39].rows[3] = "    ÿÿ  ";
+	fontMap[39].rows[4] = "     ÿÿ ";
+	fontMap[39].rows[5] = "ÿÿ   ÿÿ ";
+	fontMap[39].rows[6] = " ÿÿÿÿÿ  ";
+	fontMap[39].rows[7] = "        ";
+
+	fontMap[40].character = '6';
+	fontMap[40].rows[0] = "  ÿÿÿ   ";
+	fontMap[40].rows[1] = " ÿÿ     ";
+	fontMap[40].rows[2] = "ÿÿ      ";
+	fontMap[40].rows[3] = "ÿÿÿÿÿ   ";
+	fontMap[40].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[40].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[40].rows[6] = " ÿÿÿÿ   ";
+	fontMap[40].rows[7] = "        ";
+
+	fontMap[41].character = '7';
+	fontMap[41].rows[0] = "ÿÿÿÿÿÿ  ";
+	fontMap[41].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[41].rows[2] = "    ÿÿ  ";
+	fontMap[41].rows[3] = "   ÿÿ   ";
+	fontMap[41].rows[4] = "  ÿÿ    ";
+	fontMap[41].rows[5] = " ÿÿ     ";
+	fontMap[41].rows[6] = " ÿÿ     ";
+	fontMap[41].rows[7] = " ÿÿ     ";
+
+	fontMap[42].character = '8';
+	fontMap[42].rows[0] = " ÿÿÿÿ   ";
+	fontMap[42].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[42].rows[2] = "ÿÿ  ÿÿ  ";
+	fontMap[42].rows[3] = " ÿÿÿÿ   ";
+	fontMap[42].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[42].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[42].rows[6] = " ÿÿÿÿ   ";
+	fontMap[42].rows[7] = "        ";
+
+	fontMap[43].character = '9';
+	fontMap[43].rows[0] = " ÿÿÿÿ   ";
+	fontMap[43].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[43].rows[2] = "ÿÿ  ÿÿ  ";
+	fontMap[43].rows[3] = " ÿÿÿÿÿ  ";
+	fontMap[43].rows[4] = "    ÿÿ  ";
+	fontMap[43].rows[5] = "   ÿÿÿ  ";
+	fontMap[43].rows[6] = " ÿÿÿÿ   ";
+	fontMap[43].rows[7] = "        ";
+
+	fontMap[44].character = '0';
+	fontMap[44].rows[0] = " ÿÿÿÿ   ";
+	fontMap[44].rows[1] = "ÿÿ  ÿÿ  ";
+	fontMap[44].rows[2] = "ÿÿ ÿÿÿ  ";
+	fontMap[44].rows[3] = "ÿÿÿ ÿÿ  ";
+	fontMap[44].rows[4] = "ÿÿÿ ÿÿ  ";
+	fontMap[44].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[44].rows[6] = " ÿÿÿÿ   ";
+	fontMap[44].rows[7] = "        ";
+
+	fontMap[45].character = 'a';
+	fontMap[45].rows[0] = "        ";
+	fontMap[45].rows[1] = "        ";
+	fontMap[45].rows[2] = " ÿÿÿÿ   ";
+	fontMap[45].rows[3] = "    ÿÿ  ";
+	fontMap[45].rows[4] = " ÿÿÿÿÿ  ";
+	fontMap[45].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[45].rows[6] = " ÿÿÿ ÿÿ ";
+	fontMap[45].rows[7] = "        ";
+
+	fontMap[46].character = 'b';
+	fontMap[46].rows[0] = "ÿÿÿ     ";
+	fontMap[46].rows[1] = " ÿÿ     ";
+	fontMap[46].rows[2] = " ÿÿÿÿÿ  ";
+	fontMap[46].rows[3] = " ÿÿ  ÿÿ ";
+	fontMap[46].rows[7] = " ÿÿ  ÿÿ ";
+	fontMap[46].rows[7] = " ÿÿ  ÿÿ ";
+	fontMap[46].rows[7] = "ÿ ÿÿÿÿ  ";
+	fontMap[46].rows[7] = "        ";
+
+	fontMap[47].character = 'c';
+	fontMap[47].rows[0] = "        ";
+	fontMap[47].rows[1] = "        ";
+	fontMap[47].rows[2] = " ÿÿÿÿ   ";
+	fontMap[47].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[47].rows[4] = "ÿÿ      ";
+	fontMap[47].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[47].rows[6] = " ÿÿÿÿ   ";
+	fontMap[47].rows[7] = "        ";
+
+	fontMap[48].character = 'd';
+	fontMap[48].rows[0] = "   ÿÿÿ  ";
+	fontMap[48].rows[1] = "    ÿÿ  ";
+	fontMap[48].rows[2] = "    ÿÿ  ";
+	fontMap[48].rows[3] = " ÿÿÿÿÿ  ";
+	fontMap[48].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[48].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[48].rows[6] = " ÿÿÿ ÿÿ ";
+	fontMap[48].rows[7] = "        ";
+
+	fontMap[49].character = 'e';
+	fontMap[49].rows[0] = "        ";
+	fontMap[49].rows[1] = "        ";
+	fontMap[49].rows[2] = " ÿÿÿÿ   ";
+	fontMap[49].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[49].rows[4] = "ÿÿÿÿÿÿ  ";
+	fontMap[49].rows[5] = "ÿÿ      ";
+	fontMap[49].rows[6] = " ÿÿÿÿ   ";
+	fontMap[49].rows[7] = "        ";
+
+	fontMap[50].character = 'f';
+	fontMap[50].rows[0] = "  ÿÿÿ   ";
+	fontMap[50].rows[1] = " ÿÿ ÿÿ  ";
+	fontMap[50].rows[2] = " ÿÿ     ";
+	fontMap[50].rows[3] = "ÿÿÿÿ    ";
+	fontMap[50].rows[4] = " ÿÿ     ";
+	fontMap[50].rows[5] = " ÿÿ     ";
+	fontMap[50].rows[6] = "ÿÿÿÿ    ";
+	fontMap[50].rows[7] = "        ";
+
+	fontMap[51].character = 'g';
+	fontMap[51].rows[0] = "        ";
+	fontMap[51].rows[1] = "        ";
+	fontMap[51].rows[2] = " ÿÿÿ ÿÿ ";
+	fontMap[51].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[51].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[51].rows[5] = " ÿÿÿÿÿ  ";
+	fontMap[51].rows[6] = "    ÿÿ  ";
+	fontMap[51].rows[7] = "ÿÿÿÿÿ";
+
+	fontMap[52].character = 'h';
+	fontMap[52].rows[0] = "ÿÿÿ     ";
+	fontMap[52].rows[1] = " ÿÿ     ";
+	fontMap[52].rows[2] = " ÿÿ ÿÿ  ";
+	fontMap[52].rows[3] = " ÿÿÿ ÿÿ ";
+	fontMap[52].rows[4] = " ÿÿ  ÿÿ ";
+	fontMap[52].rows[5] = " ÿÿ  ÿÿ ";
+	fontMap[52].rows[6] = "ÿÿÿ  ÿÿ ";
+	fontMap[52].rows[7] = "        ";
+
+	fontMap[53].character = 'i';
+	fontMap[53].rows[0] = "  ÿÿ    ";
+	fontMap[53].rows[1] = "        ";
+	fontMap[53].rows[2] = " ÿÿÿ    ";
+	fontMap[53].rows[3] = "  ÿÿ    ";
+	fontMap[53].rows[4] = "  ÿÿ    ";
+	fontMap[53].rows[5] = "  ÿÿ    ";
+	fontMap[53].rows[6] = " ÿÿÿÿ   ";
+	fontMap[53].rows[7] = "        ";
+
+	fontMap[54].character = 'j';
+	fontMap[54].rows[0] = "   ÿÿ   ";
+	fontMap[54].rows[1] = "        ";
+	fontMap[54].rows[2] = " ÿÿÿÿ   ";
+	fontMap[54].rows[3] = "   ÿÿ   ";
+	fontMap[54].rows[4] = "   ÿÿ   ";
+	fontMap[54].rows[5] = "   ÿÿ   ";
+	fontMap[54].rows[6] = "ÿÿ ÿÿ   ";
+	fontMap[54].rows[7] = " ÿÿÿ    ";
+
+	fontMap[55].character = 'k';
+	fontMap[55].rows[0] = "ÿÿÿ     ";
+	fontMap[55].rows[1] = " ÿÿ     ";
+	fontMap[55].rows[2] = " ÿÿ  ÿÿ ";
+	fontMap[55].rows[3] = " ÿÿ ÿÿ  ";
+	fontMap[55].rows[4] = " ÿÿÿÿ   ";
+	fontMap[55].rows[5] = " ÿÿ ÿÿ  ";
+	fontMap[55].rows[6] = "ÿÿÿ  ÿÿ ";
+	fontMap[55].rows[7] = "        ";
+
+	fontMap[56].character = 'l';
+	fontMap[56].rows[0] = " ÿÿÿ    ";
+	fontMap[56].rows[1] = "  ÿÿ    ";
+	fontMap[56].rows[2] = "  ÿÿ    ";
+	fontMap[56].rows[3] = "  ÿÿ    ";
+	fontMap[56].rows[4] = "  ÿÿ    ";
+	fontMap[56].rows[5] = "  ÿÿ    ";
+	fontMap[56].rows[6] = " ÿÿÿÿ   ";
+	fontMap[56].rows[7] = "        ";
+
+	fontMap[57].character = 'm';
+	fontMap[57].rows[0] = "        ";
+	fontMap[57].rows[1] = "        ";
+	fontMap[57].rows[2] = "ÿÿÿ ÿÿ  ";
+	fontMap[57].rows[3] = "ÿÿÿÿÿÿÿ ";
+	fontMap[57].rows[4] = "ÿÿ ÿ ÿÿ ";
+	fontMap[57].rows[5] = "ÿÿ ÿ ÿÿ ";
+	fontMap[57].rows[6] = "ÿÿ ÿ ÿÿ ";
+	fontMap[57].rows[7] = "        ";
+
+	fontMap[58].character = 'n';
+	fontMap[58].rows[0] = "        ";
+	fontMap[58].rows[1] = "        ";
+	fontMap[58].rows[2] = "ÿÿÿÿÿ   ";
+	fontMap[58].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[58].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[58].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[58].rows[6] = "ÿÿ  ÿÿ  ";
+	fontMap[58].rows[7] = "        ";
+
+	fontMap[59].character = 'o';
+	fontMap[59].rows[0] = "        ";
+	fontMap[59].rows[1] = "        ";
+	fontMap[59].rows[2] = " ÿÿÿÿ   ";
+	fontMap[59].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[59].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[59].rows[5] = "ÿÿ  ÿÿ  ";
+	fontMap[59].rows[6] = " ÿÿÿÿ   ";
+	fontMap[59].rows[7] = "        ";
+
+	fontMap[60].character = 'p';
+	fontMap[60].rows[0] = "        ";
+	fontMap[60].rows[1] = "        ";
+	fontMap[60].rows[2] = "ÿÿ ÿÿÿ  ";
+	fontMap[60].rows[3] = " ÿÿ  ÿÿ ";
+	fontMap[60].rows[4] = " ÿÿ  ÿÿ ";
+	fontMap[60].rows[5] = " ÿÿÿÿÿ  ";
+	fontMap[60].rows[6] = " ÿÿ     ";
+	fontMap[60].rows[7] = "ÿÿÿÿ    ";
+
+	fontMap[61].character = 'q';
+	fontMap[61].rows[0] = "        ";
+	fontMap[61].rows[1] = "        ";
+	fontMap[61].rows[2] = " ÿÿÿ ÿÿ ";
+	fontMap[61].rows[3] = "ÿÿ  ÿÿ  ";
+	fontMap[61].rows[4] = "ÿÿ  ÿÿ  ";
+	fontMap[61].rows[5] = " ÿÿÿÿÿ  ";
+	fontMap[61].rows[6] = "    ÿÿ  ";
+	fontMap[61].rows[7] = "   ÿÿÿÿ ";
+
+	fontMap[62].character = 'r';
+	fontMap[62].rows[0] = "        ";
+	fontMap[62].rows[1] = "        ";
+	fontMap[62].rows[2] = "ÿÿ ÿÿ   ";
+	fontMap[62].rows[3] = " ÿÿ ÿÿ  ";
+	fontMap[62].rows[4] = " ÿÿ ÿÿ  ";
+	fontMap[62].rows[5] = " ÿÿ     ";
+	fontMap[62].rows[6] = "ÿÿÿÿ    ";
+	fontMap[62].rows[7] = "        ";
+
+	fontMap[63].character = 's';
+	fontMap[63].rows[0] = "        ";
+	fontMap[63].rows[1] = "        ";
+	fontMap[63].rows[2] = " ÿÿÿÿÿ  ";
+	fontMap[63].rows[3] = "ÿÿ      ";
+	fontMap[63].rows[4] = " ÿÿÿÿ   ";
+	fontMap[63].rows[5] = "    ÿÿ  ";
+	fontMap[63].rows[6] = "ÿÿÿÿÿÿ  ";
+	fontMap[63].rows[7] = "        ";
+
+	fontMap[64].character = 't';
+	fontMap[64].rows[0] = "  Û     ";
+	fontMap[64].rows[1] = " ÛÛ     ";
+	fontMap[64].rows[2] = "ÛÛÛÛÛ   ";
+	fontMap[64].rows[3] = " ÛÛ     ";
+	fontMap[64].rows[4] = " ÛÛ     ";
+	fontMap[64].rows[5] = " ÛÛ Û   ";
+	fontMap[64].rows[6] = "  ÛÛÛ   ";
+	fontMap[64].rows[7] = "        ";
+
+	fontMap[65].character = 'u';
+	fontMap[65].rows[0] = "        ";
+	fontMap[65].rows[1] = "        ";
+	fontMap[65].rows[2] = "ÛÛ  ÛÛ  ";
+	fontMap[65].rows[3] = "ÛÛ  ÛÛ  ";
+	fontMap[65].rows[4] = "ÛÛ  ÛÛ  ";
+	fontMap[65].rows[5] = "ÛÛ  ÛÛ  ";
+	fontMap[65].rows[6] = " ÛÛÛ ÛÛ ";
+	fontMap[65].rows[7] = "        ";
+
+	fontMap[66].character = 'v';
+	fontMap[66].rows[0] = "        ";
+	fontMap[66].rows[1] = "        ";
+	fontMap[66].rows[2] = "ÛÛ  ÛÛ  ";
+	fontMap[66].rows[3] = "ÛÛ  ÛÛ  ";
+	fontMap[66].rows[4] = "ÛÛ  ÛÛ  ";
+	fontMap[66].rows[5] = " ÛÛÛÛ   ";
+	fontMap[66].rows[6] = "  ÛÛ    ";
+	fontMap[66].rows[7] = "        ";
+
+	fontMap[67].character = 'w';
+	fontMap[67].rows[0] = "        ";
+	fontMap[67].rows[1] = "        ";
+	fontMap[67].rows[2] = "ÛÛ   ÛÛ ";
+	fontMap[67].rows[3] = "ÛÛ   ÛÛ ";
+	fontMap[67].rows[4] = "ÛÛ Û ÛÛ ";
+	fontMap[67].rows[6] = "ÛÛÛÛÛÛÛ ";
+	fontMap[67].rows[7] = " ÛÛ ÛÛ  ";
+	fontMap[67].rows[7] = "        ";
+
+	fontMap[68].character = 'x';
+	fontMap[68].rows[0] = "        ";
+	fontMap[68].rows[1] = "        ";
+	fontMap[68].rows[2] = "ÛÛ   ÛÛ ";
+	fontMap[68].rows[3] = " ÛÛ ÛÛ  ";
+	fontMap[68].rows[4] = "  ÛÛÛ   ";
+	fontMap[68].rows[5] = " ÛÛ ÛÛ  ";
+	fontMap[68].rows[6] = "ÛÛ   ÛÛ ";
+	fontMap[68].rows[7] = "        ";
+
+	fontMap[69].character = 'y';
+	fontMap[69].rows[0] = "    ";
+	fontMap[69].rows[1] = "    ";
+	fontMap[69].rows[2] = "ÛÛ  ÛÛ  ";
+	fontMap[69].rows[3] = "ÛÛ  ÛÛ  ";
+	fontMap[69].rows[4] = "ÛÛ  ÛÛ  ";
+	fontMap[69].rows[5] = " ÛÛÛÛÛ  ";
+	fontMap[69].rows[6] = "    ÛÛ  ";
+	fontMap[69].rows[7] = "ÛÛÛÛÛ   ";
+
+	fontMap[70].character = 'z';
+	fontMap[70].rows[0] = "        ";
+	fontMap[70].rows[1] = "        ";
+	fontMap[70].rows[2] = "ÛÛÛÛÛÛ  ";
+	fontMap[70].rows[3] = "Û  ÛÛ   ";
+	fontMap[70].rows[4] = "  ÛÛ    ";
+	fontMap[70].rows[5] = " ÛÛ  Û  ";
+	fontMap[70].rows[6] = "ÛÛÛÛÛÛ  ";
+	fontMap[70].rows[7] = "        ";
+}
+InitFontMap();
+
+//     Ü         Ü      ÜÜ     Ü   ß    Ü
+// ßßÜ ÛßÜ ÜßÜ ÛßÛ ÜßÜ Û   Üßß ÛßÜ Û  Û Û Û Û   ÛÜ ÜÛ ÛÜ Û ÜßÜ ÛßÜ ÜßÛ ÛßÜ Üßß
+// ÛßÛ Û Û Û Ü Û Û Ûßß Ûß  Û Û Û Û Û  Û ÛßÜ Û   Û ß Û Û ßÛ Û Û Û Û Û Û ÛßÜ  ßÜ
+//  ßß ßß   ß   ßß  ßß Û    ßß ß ß ß Üß ß ß ßßß ß   ß ß  ß  ß  Ûß   ßÛ ß ß ßß
+
+//
+// ÜÛÜ Û Û Û Û Û   Û Û Û Û Û ßßÛ     ÜßÜ  ÜßÜ Û   ÜÛÜÛÜ ÜßßÜ
+//  Û  Û Û ÛÜÛ ÛÜßÜÛ ÜßÜ ßÜÛ Üß    Ü ÜßÛß  Üß ß ß ÜÛÜÛÜ Û ÛÛ
+//   ß  ß   ß  ß   ß ß ß ÜÜß ßßß Û ß  ßßß  Ü  ß ß  ß ß  ßÜÜ
+
+// ÜÜ  ÜÜ  ÜÜ  Ü Ü ÜÜÜ Ü   ÜÜÜ  Ü   Ü   Ü
+//  Û    Û  Üß Û Û ÛÜ  ÛÜ    Û ßÜß ßÜÛ Û Û
+//  Û  Üß    Û  ßÛ   Û Û Û  Û  Û Û   Û Û Û
+// ßßß ßßß ßß    ß ßß   ß   ß   ß  ßß   ß
+
+// ÜÛÜ ÛÛÜ ÜßÜ ÛÛÜ ÛÛÛ ÛÛÛ Üßß Û Û ßÛß  Û Û Û Û   ÛÜ ÜÛ ÛÜ Û ÜßÜ ÛßÛ ÛÛÛ ÛßÜ ÜÛÜ                  
+// Û Û Û Û Û   Û Û Û   Û   Û Ü Û Û  Û   Û Û Û Û   Û ß Û Û ßÛ Û Û Û Û Û Û Û Û Û  
+// ÛßÛ ÛßÜ Û   Û Û Ûß  Ûß  Û Û ÛßÛ  Û   Û ÛßÜ Û   Û   Û Û  Û Û Û Ûßß ßßÛ ÛßÜ  ßÜ
+// ß ß ßßß ßÜß ÛÜß ßßß ß   ßÜß ß ß ßßß ßß ß ß ßßß ß   ß ß  ß ßÜß ß     ß ß ß ßÛß
+
+// ßÛß Û Û Û Û Û   Û Û Û Û Û ßßÛ
+//  Û  Û Û Û Û Û Û Û  Û  Û Û  Üß
+//  Û  Û Û Û Û ÛÜßÜÛ Û Û  Û  Üß 
+//  ß  ßßß ßÜß ßÛ Ûß ß ß  ß  ÛÜÜ

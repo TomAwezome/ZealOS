@@ -1,0 +1,44 @@
+Cd(__DIR__);;
+
+#define MAX_WIDTH 1024 // temp until we check width of doldoc
+class FontMapping {
+	I32 character;
+	I32 rows[4];
+} fontMap[70];
+
+#include "Small"
+
+U0 Font(U8 *text, U8 *color="BLUE") {
+    I64 i, j, row, lineWidth = 0;
+    I32 c;
+
+	"$$BG$$";
+	"$$%s$$",color;
+
+    for (row = 0; row < 4; row++) {
+		lineWidth = 0;
+        for (i = 0; text[i]; i++) {
+            c = text[i];
+
+			// Convert to lowercase
+			//if (c >= 'A' && c <= 'Z')
+			//	c = c + ('a' - 'A');
+
+            for (j = 0; fontMap[j].character; j++) {
+                if (fontMap[j].character == c) {
+					if (lineWidth + StrLen(fontMap[j].rows[row]) > MAX_WIDTH){
+						Print("\n");
+						lineWidth = 0;
+					}
+					Print(fontMap[j].rows[row]);
+					lineWidth += StrLen(fontMap[j].rows[row]);
+                    break;
+                }
+            }
+        }
+        Print("\n"); // Move to the next row after printing all characters for the current row
+    }
+	"$$FG$$";
+}
+
+// Font("ABCDEFGHIJKLMNOPQRSTUVWX`YZ");
