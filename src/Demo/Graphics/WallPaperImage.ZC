@@ -1,0 +1,64 @@
+#include "::/Home/Wallpapers/Images/Lib/uPNG";
+
+U0 (*old_wall_paper)(CTask *task);
+RegDefault("Wallpapers/Images/Current", "1;\n");
+RegExe("Wallpapers/Images/Current");
+
+CDC *image;
+
+U0 WallPaperSet(I8 direction) {
+    CDirEntry *tmpde1;
+    // read the current wallpaper index from the registry
+    I64 current = RegExe("Wallpapers/Images/Current");
+    I64 max = 0;
+
+    // SysLog("Reading current wallpaper index from registry: %d\n", current);
+
+    // search the wallpapers directory for .DD files
+    tmpde1 = FilesFind("::/Home/Wallpapers/Images/1024/*.png", 1);
+    if (tmpde1) {
+        do {
+            max++;
+            tmpde1 = tmpde1->next;
+        } while (tmpde1);
+    }
+
+    // move to the next/previous wallpaper
+    current += direction;
+    if (current < 1)
+        current = max;  // wrap around to the end
+    if (current > max)
+        current = 1;  // wrap around to the start
+
+    // write the new current index back to the registry
+    RegWrite("Wallpapers/Images/Current", "%d;\n", current);
+
+    // SysLog("Current: %d\n", current);
+    // Change the wallpaper
+    Sys("WallPaperImageInit(\"::/Home/Wallpapers/Images/1024/%d.png\");\n", current);
+}
+
+U0 WallPaperImage(CTask *task) {
+	CDC *dc = DCAlias(gr.dc2, task);
+	// TODO: dont call PNGRead everyframe, should only be called once;
+    GrBlot(dc, 0, 0, image);
+	DCDel(dc);
+}
+
+U0 WallPaperImageInit(I64 filepath="::/Home/Wallpapers/Images/1024/1.png")
+{
+    if (Fs != sys_task)
+    {
+        "\nMust be System Included. (SHIFT-F5 / RightClick->System Include) \n";
+        return;
+    }
+    old_wall_paper = gr.fp_wall_paper;
+	
+	image = PNGRead(filepath);
+
+    // wallpaper_doc->win_task = sys_winmgr_task;
+
+    gr.fp_wall_paper = &WallPaperImage;
+}
+
+WallPaperSet(1);

@@ -1,0 +1,1212 @@
+CDoc *tmpdoc = DocNew;
+CDoc *prevdoc;
+prevdoc = Fs->put_doc;
+Fs->put_doc = tmpdoc;
+
+I64 cond(Bool bool, I64 true_val,
+         I64 false_val) { // Conditional operator pseudo-polyfill.
+  if (bool) {
+    return true_val;
+  } else {
+    return false_val;
+  }
+}
+
+/*
+   uPNG -- derived from LodePNG version 20100808
+
+   Copyright (c) 2005-2010 Lode Vandevenne
+   Copyright (c) 2010 Sean Middleditch
+
+   This software is provided 'as-is', without any express or implied
+   warranty. In no event will the authors be held liable for any damages
+   arising from the use of this software.
+
+   Permission is granted to anyone to use this software for any purpose,
+   including commercial applications, and to alter it and redistribute it
+   freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+
+   Converted to HolyC by Alec Murphy
+ */
+
+#define UPNG_EOK 0
+#define UPNG_ENOMEM 1
+#define UPNG_ENOTFOUND 2
+#define UPNG_ENOTPNG 3
+#define UPNG_EMALFORMED 4
+#define UPNG_EUNSUPPORTED 5
+#define UPNG_EUNINTERLACED 6
+#define UPNG_EUNFORMAT 7
+#define UPNG_EPARAM 8
+
+#define UPNG_BADFORMAT 0
+#define UPNG_RGB8 1
+#define UPNG_RGB16 2
+#define UPNG_RGBA8 3
+#define UPNG_RGBA16 4
+#define UPNG_LUMINANCE1 5
+#define UPNG_LUMINANCE2 6
+#define UPNG_LUMINANCE4 7
+#define UPNG_LUMINANCE8 8
+#define UPNG_LUMINANCE_ALPHA1 9
+#define UPNG_LUMINANCE_ALPHA2 10
+#define UPNG_LUMINANCE_ALPHA4 11
+#define UPNG_LUMINANCE_ALPHA8 12
+
+#define UPNG_ERROR -1
+#define UPNG_DECODED 0
+#define UPNG_HEADER 1
+#define UPNG_NEW 2
+
+#define UPNG_LUM 0
+#define UPNG_RGB 2
+#define UPNG_LUMA 4
+#define UPNG_RGBA 6
+
+class upng_source {
+  U8 *buffer;
+  U64 size;
+  U8 owning;
+};
+
+class upng_t {
+  U64 width;
+  U64 height;
+  I32 color_type;
+  U64 color_depth;
+  I64 format;
+  U8 *buffer;
+  U64 size;
+  I64 error;
+  U64 error_line;
+  I64 state;
+  upng_source source;
+};
+
+class huffman_tree {
+  U64 *tree2d;
+  U64 maxbitlen;
+  U64 numcodes;
+};
+
+I64 upng_get_error(upng_t *upng) { return upng->error; }
+U64 upng_get_error_line(upng_t *upng) { return upng->error_line; }
+U64 upng_get_width(upng_t *upng) { return upng->width; }
+U64 upng_get_height(upng_t *upng) { return upng->height; }
+U64 upng_get_components(upng_t *upng) {
+  switch (upng->color_type) {
+  case UPNG_LUM:
+    return 1;
+  case UPNG_RGB:
+    return 3;
+  case UPNG_LUMA:
+    return 2;
+  case UPNG_RGBA:
+    return 4;
+  default:
+    return 0;
+  }
+}
+U64 upng_get_bitdepth(upng_t *upng) { return upng->color_depth; }
+U64 upng_get_bpp(upng_t *upng) {
+  return upng_get_bitdepth(upng) * upng_get_components(upng);
+}
+U64 upng_get_pixelsize(upng_t *upng) {
+  U64 bits = upng_get_bitdepth(upng) * upng_get_components(upng);
+  bits += bits % 8;
+  return bits;
+}
+I64 upng_get_format(upng_t *upng) { return upng->format; }
+U8 *upng_get_buffer(upng_t *upng) { return upng->buffer; }
+U64 upng_get_size(upng_t *upng) { return upng->size; }
+
+U64 LENGTH_BASE[29] = {3,  4,  5,  6,   7,   8,   9,   10,  11, 13,
+                       15, 17, 19, 23,  27,  31,  35,  43,  51, 59,
+                       67, 83, 99, 115, 131, 163, 195, 227, 258};
+U64 LENGTH_EXTRA[29] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2,
+                        2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0};
+U64 DISTANCE_BASE[30] = {1,    2,    3,    4,     5,     7,    9,    13,
+                         17,   25,   33,   49,    65,    97,   129,  193,
+                         257,  385,  513,  769,   1025,  1537, 2049, 3073,
+                         4097, 6145, 8193, 12289, 16385, 24577};
+U64 DISTANCE_EXTRA[30] = {0, 0, 0, 0, 1, 1, 2, 2,  3,  3,  4,  4,  5,  5,  6,
+                          6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13};
+U64 CLCL[19] = {16, 17, 18, 0, 8,  7, 9,  6, 10, 5,
+                11, 4,  12, 3, 13, 2, 14, 1, 15};
+U64 FIXED_DEFLATE_CODE_TREE[288 * 2] = {
+    289, 370, 290, 307, 546, 291, 561, 292, 293, 300, 294, 297, 295, 296, 0,
+    1,   2,   3,   298, 299, 4,   5,   6,   7,   301, 304, 302, 303, 8,   9,
+    10,  11,  305, 306, 12,  13,  14,  15,  308, 339, 309, 324, 310, 317, 311,
+    314, 312, 313, 16,  17,  18,  19,  315, 316, 20,  21,  22,  23,  318, 321,
+    319, 320, 24,  25,  26,  27,  322, 323, 28,  29,  30,  31,  325, 332, 326,
+    329, 327, 328, 32,  33,  34,  35,  330, 331, 36,  37,  38,  39,  333, 336,
+    334, 335, 40,  41,  42,  43,  337, 338, 44,  45,  46,  47,  340, 355, 341,
+    348, 342, 345, 343, 344, 48,  49,  50,  51,  346, 347, 52,  53,  54,  55,
+    349, 352, 350, 351, 56,  57,  58,  59,  353, 354, 60,  61,  62,  63,  356,
+    363, 357, 360, 358, 359, 64,  65,  66,  67,  361, 362, 68,  69,  70,  71,
+    364, 367, 365, 366, 72,  73,  74,  75,  368, 369, 76,  77,  78,  79,  371,
+    434, 372, 403, 373, 388, 374, 381, 375, 378, 376, 377, 80,  81,  82,  83,
+    379, 380, 84,  85,  86,  87,  382, 385, 383, 384, 88,  89,  90,  91,  386,
+    387, 92,  93,  94,  95,  389, 396, 390, 393, 391, 392, 96,  97,  98,  99,
+    394, 395, 100, 101, 102, 103, 397, 400, 398, 399, 104, 105, 106, 107, 401,
+    402, 108, 109, 110, 111, 404, 419, 405, 412, 406, 409, 407, 408, 112, 113,
+    114, 115, 410, 411, 116, 117, 118, 119, 413, 416, 414, 415, 120, 121, 122,
+    123, 417, 418, 124, 125, 126, 127, 420, 427, 421, 424, 422, 423, 128, 129,
+    130, 131, 425, 426, 132, 133, 134, 135, 428, 431, 429, 430, 136, 137, 138,
+    139, 432, 433, 140, 141, 142, 143, 435, 483, 436, 452, 568, 437, 438, 445,
+    439, 442, 440, 441, 144, 145, 146, 147, 443, 444, 148, 149, 150, 151, 446,
+    449, 447, 448, 152, 153, 154, 155, 450, 451, 156, 157, 158, 159, 453, 468,
+    454, 461, 455, 458, 456, 457, 160, 161, 162, 163, 459, 460, 164, 165, 166,
+    167, 462, 465, 463, 464, 168, 169, 170, 171, 466, 467, 172, 173, 174, 175,
+    469, 476, 470, 473, 471, 472, 176, 177, 178, 179, 474, 475, 180, 181, 182,
+    183, 477, 480, 478, 479, 184, 185, 186, 187, 481, 482, 188, 189, 190, 191,
+    484, 515, 485, 500, 486, 493, 487, 490, 488, 489, 192, 193, 194, 195, 491,
+    492, 196, 197, 198, 199, 494, 497, 495, 496, 200, 201, 202, 203, 498, 499,
+    204, 205, 206, 207, 501, 508, 502, 505, 503, 504, 208, 209, 210, 211, 506,
+    507, 212, 213, 214, 215, 509, 512, 510, 511, 216, 217, 218, 219, 513, 514,
+    220, 221, 222, 223, 516, 531, 517, 524, 518, 521, 519, 520, 224, 225, 226,
+    227, 522, 523, 228, 229, 230, 231, 525, 528, 526, 527, 232, 233, 234, 235,
+    529, 530, 236, 237, 238, 239, 532, 539, 533, 536, 534, 535, 240, 241, 242,
+    243, 537, 538, 244, 245, 246, 247, 540, 543, 541, 542, 248, 249, 250, 251,
+    544, 545, 252, 253, 254, 255, 547, 554, 548, 551, 549, 550, 256, 257, 258,
+    259, 552, 553, 260, 261, 262, 263, 555, 558, 556, 557, 264, 265, 266, 267,
+    559, 560, 268, 269, 270, 271, 562, 565, 563, 564, 272, 273, 274, 275, 566,
+    567, 276, 277, 278, 279, 569, 572, 570, 571, 280, 281, 282, 283, 573, 574,
+    284, 285, 286, 287, 0,   0};
+U64 FIXED_DISTANCE_TREE[32 * 2] = {
+    33, 48, 34, 41, 35, 38, 36, 37, 0,  1,  2,  3,  39, 40, 4,  5,
+    6,  7,  42, 45, 43, 44, 8,  9,  10, 11, 46, 47, 12, 13, 14, 15,
+    49, 56, 50, 53, 51, 52, 16, 17, 18, 19, 54, 55, 20, 21, 22, 23,
+    57, 60, 58, 59, 24, 25, 26, 27, 61, 62, 28, 29, 30, 31, 0,  0};
+U8 read_bit(U64 *bitpointer, U8 *bitstream) {
+  U8 result =
+      ((bitstream[(*bitpointer) >> 3] >> ((*bitpointer) & 0x7)) & 1)(U8);
+  (*bitpointer)++;
+  return result;
+}
+U64 read_bits(U64 *bitpointer, U8 *bitstream, U64 nbits) {
+  U64 result = 0, i;
+  for (i = 0; i < nbits; i++)
+    result |= (read_bit(bitpointer, bitstream)(U64)) << i;
+  return result;
+}
+U0 huffman_tree_init(huffman_tree *tree, U64 *buffer, U64 numcodes,
+                     U64 maxbitlen) {
+  tree->tree2d = buffer;
+  tree->numcodes = numcodes;
+  tree->maxbitlen = maxbitlen;
+}
+U0 huffman_tree_create_lengths(upng_t *upng, huffman_tree *tree, U64 *bitlen) {
+  U64 tree1d[288];
+  U64 blcount[15];
+  U64 nextcode[15 + 1];
+  U64 bits, n, i;
+  U64 nodefilled = 0;
+  U64 treepos = 0;
+  MemSet(blcount, 0, sizeof(blcount));
+  MemSet(nextcode, 0, sizeof(nextcode));
+  for (bits = 0; bits < tree->numcodes; bits++) {
+    blcount[bitlen[bits]]++;
+  }
+  for (bits = 1; bits <= tree->maxbitlen; bits++) {
+    nextcode[bits] = (nextcode[bits - 1] + blcount[bits - 1]) << 1;
+  }
+  for (n = 0; n < tree->numcodes; n++) {
+    if (bitlen[n] != 0) {
+      tree1d[n] = nextcode[bitlen[n]]++;
+    }
+  }
+  for (n = 0; n < tree->numcodes * 2; n++) {
+    tree->tree2d[n] = 32767;
+  }
+  for (n = 0; n < tree->numcodes; n++) {
+    for (i = 0; i < bitlen[n]; i++) {
+      U8 bit = ((tree1d[n] >> (bitlen[n] - i - 1)) & 1)(U8);
+      if (treepos > tree->numcodes - 2) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 245;
+        } while (0);
+        return;
+      }
+      if (tree->tree2d[2 * treepos + bit] == 32767) {
+        if (i + 1 == bitlen[n]) {
+          tree->tree2d[2 * treepos + bit] = n;
+          treepos = 0;
+        } else {
+          nodefilled++;
+          tree->tree2d[2 * treepos + bit] = nodefilled + tree->numcodes;
+          treepos = nodefilled;
+        }
+      } else {
+        treepos = tree->tree2d[2 * treepos + bit] - tree->numcodes;
+      }
+    }
+  }
+  for (n = 0; n < tree->numcodes * 2; n++) {
+    if (tree->tree2d[n] == 32767) {
+      tree->tree2d[n] = 0;
+    }
+  }
+}
+U64 huffman_decode_symbol(upng_t *upng, U8 *in, U64 *bp, huffman_tree *codetree,
+                          U64 inlength) {
+  U64 treepos = 0, ct;
+  U8 bit;
+  while (1) {
+    if (((*bp) & 0x07) == 0 && ((*bp) >> 3) > inlength) {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 278;
+      } while (0);
+      return 0;
+    }
+    bit = read_bit(bp, in);
+    ct = codetree->tree2d[(treepos << 1) | bit];
+    if (ct < codetree->numcodes) {
+      return ct;
+    }
+    treepos = ct - codetree->numcodes;
+    if (treepos >= codetree->numcodes) {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 291;
+      } while (0);
+      return 0;
+    }
+  }
+}
+U0 get_tree_inflate_dynamic(upng_t *upng, huffman_tree *codetree,
+                            huffman_tree *codetreeD,
+                            huffman_tree *codelengthcodetree, U8 *in, U64 *bp,
+                            U64 inlength) {
+  U64 codelengthcode[19];
+  U64 bitlen[288];
+  U64 bitlenD[32];
+  U64 replength;
+  U64 code;
+  U64 value;
+  U64 n, hlit, hdist, hclen, i;
+  if ((*bp) >> 3 >= inlength - 2) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 308;
+    } while (0);
+    return;
+  }
+  MemSet(bitlen, 0, sizeof(bitlen));
+  MemSet(bitlenD, 0, sizeof(bitlenD));
+  hlit = read_bits(bp, in, 5) + 257;
+  hdist = read_bits(bp, in, 5) + 1;
+  hclen = read_bits(bp, in, 4) + 4;
+  for (i = 0; i < 19; i++) {
+    if (i < hclen) {
+      codelengthcode[CLCL[i]] = read_bits(bp, in, 3);
+    } else {
+      codelengthcode[CLCL[i]] = 0;
+    }
+  }
+  huffman_tree_create_lengths(upng, codelengthcodetree, codelengthcode);
+  if (upng->error != UPNG_EOK) {
+    return;
+  }
+  i = 0;
+  while (i < hlit + hdist) {
+    code = huffman_decode_symbol(upng, in, bp, codelengthcodetree, inlength);
+    if (upng->error != UPNG_EOK) {
+      break;
+    }
+    if (code <= 15) {
+      if (i < hlit) {
+        bitlen[i] = code;
+      } else {
+        bitlenD[i - hlit] = code;
+      }
+      i++;
+    } else if (code == 16) {
+      replength = 3;
+      if ((*bp) >> 3 >= inlength) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 356;
+        } while (0);
+        break;
+      }
+      replength += read_bits(bp, in, 2);
+      if ((i - 1) < hlit) {
+        value = bitlen[i - 1];
+      } else {
+        value = bitlenD[i - hlit - 1];
+      }
+      for (n = 0; n < replength; n++) {
+        if (i >= hlit + hdist) {
+          do {
+            (upng)->error = (UPNG_EMALFORMED);
+            (upng)->error_line = 372;
+          } while (0);
+          break;
+        }
+        if (i < hlit) {
+          bitlen[i] = value;
+        } else {
+          bitlenD[i - hlit] = value;
+        }
+        i++;
+      }
+    } else if (code == 17) {
+      replength = 3;
+      if ((*bp) >> 3 >= inlength) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 386;
+        } while (0);
+        break;
+      }
+      replength += read_bits(bp, in, 3);
+      for (n = 0; n < replength; n++) {
+        if (i >= hlit + hdist) {
+          do {
+            (upng)->error = (UPNG_EMALFORMED);
+            (upng)->error_line = 397;
+          } while (0);
+          break;
+        }
+        if (i < hlit) {
+          bitlen[i] = 0;
+        } else {
+          bitlenD[i - hlit] = 0;
+        }
+        i++;
+      }
+    } else if (code == 18) {
+      replength = 11;
+      if ((*bp) >> 3 >= inlength) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 412;
+        } while (0);
+        break;
+      }
+      replength += read_bits(bp, in, 7);
+      for (n = 0; n < replength; n++) {
+        if (i >= hlit + hdist) {
+          do {
+            (upng)->error = (UPNG_EMALFORMED);
+            (upng)->error_line = 422;
+          } while (0);
+          break;
+        }
+        if (i < hlit)
+          bitlen[i] = 0;
+        else
+          bitlenD[i - hlit] = 0;
+        i++;
+      }
+    } else {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 433;
+      } while (0);
+      break;
+    }
+  }
+  if (upng->error == UPNG_EOK && bitlen[256] == 0) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 439;
+    } while (0);
+  }
+  if (upng->error == UPNG_EOK) {
+    huffman_tree_create_lengths(upng, codetree, bitlen);
+  }
+  if (upng->error == UPNG_EOK) {
+    huffman_tree_create_lengths(upng, codetreeD, bitlenD);
+  }
+}
+U0 inflate_huffman(upng_t *upng, U8 *out, U64 outsize, U8 *in, U64 *bp,
+                   U64 *pos, U64 inlength, U64 btype) {
+  U64 codetree_buffer[(288 * 2)];
+  U64 codetreeD_buffer[(32 * 2)];
+  U64 done = 0;
+  U64 code;
+  U64 length;
+  U64 codelengthcodetree_buffer[(32 * 2)];
+  U64 codeD, distance, numextrabitsD;
+  U64 start, forward, backward, numextrabits;
+
+  huffman_tree codetree;
+  huffman_tree codetreeD;
+  if (btype == 1) {
+    huffman_tree_init(&codetree, FIXED_DEFLATE_CODE_TREE(U64 *), 288, 15);
+    huffman_tree_init(&codetreeD, FIXED_DISTANCE_TREE(U64 *), 32, 15);
+  } else if (btype == 2) {
+    huffman_tree codelengthcodetree;
+    huffman_tree_init(&codetree, codetree_buffer, 288, 15);
+    huffman_tree_init(&codetreeD, codetreeD_buffer, 32, 15);
+    huffman_tree_init(&codelengthcodetree, codelengthcodetree_buffer, 19, 7);
+    get_tree_inflate_dynamic(upng, &codetree, &codetreeD, &codelengthcodetree,
+                             in, bp, inlength);
+  }
+  while (done == 0) {
+    code = huffman_decode_symbol(upng, in, bp, &codetree, inlength);
+    if (upng->error != UPNG_EOK) {
+      return;
+    }
+    if (code == 256) {
+      done = 1;
+    } else if (code <= 255) {
+      if ((*pos) >= outsize) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 489;
+        } while (0);
+        return;
+      }
+      out[(*pos)++] = (code)(U8);
+    } else if (code >= 257 && code <= 285) {
+      length = LENGTH_BASE[code - 257];
+      numextrabits = LENGTH_EXTRA[code - 257];
+      if (((*bp) >> 3) >= inlength) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 506;
+        } while (0);
+        return;
+      }
+      length += read_bits(bp, in, numextrabits);
+      codeD = huffman_decode_symbol(upng, in, bp, &codetreeD, inlength);
+      if (upng->error != UPNG_EOK) {
+        return;
+      }
+      if (codeD > 29) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 519;
+        } while (0);
+        return;
+      }
+      distance = DISTANCE_BASE[codeD];
+      numextrabitsD = DISTANCE_EXTRA[codeD];
+      if (((*bp) >> 3) >= inlength) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 530;
+        } while (0);
+        return;
+      }
+      distance += read_bits(bp, in, numextrabitsD);
+      start = (*pos);
+      backward = start - distance;
+      if ((*pos) + length >= outsize) {
+        do {
+          (upng)->error = (UPNG_EMALFORMED);
+          (upng)->error_line = 541;
+        } while (0);
+        return;
+      }
+      for (forward = 0; forward < length; forward++) {
+        out[(*pos)++] = out[backward];
+        backward++;
+        if (backward >= start) {
+          backward = start - distance;
+        }
+      }
+    }
+  }
+}
+U0 inflate_uncompressed(upng_t *upng, U8 *out, U64 outsize, U8 *in, U64 *bp,
+                        U64 *pos, U64 inlength) {
+  U64 p;
+  U64 len, nlen, n;
+  while (((*bp) & 0x7) != 0) {
+    (*bp)++;
+  }
+  p = (*bp) / 8;
+  if (p >= inlength - 4) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 570;
+    } while (0);
+    return;
+  }
+  len = in[p] + 256 * in[p + 1];
+  p += 2;
+  nlen = in[p] + 256 * in[p + 1];
+  p += 2;
+  if (len + nlen != 65535) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 581;
+    } while (0);
+    return;
+  }
+  if ((*pos) + len >= outsize) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 586;
+    } while (0);
+    return;
+  }
+  if (p + len > inlength) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 592;
+    } while (0);
+    return;
+  }
+  for (n = 0; n < len; n++) {
+    out[(*pos)++] = in[p++];
+  }
+  (*bp) = p * 8;
+}
+I64 uz_inflate_data(upng_t *upng, U8 *out, U64 outsize, U8 *in, U64 insize,
+                    U64 inpos) {
+  U64 bp = 0;
+  U64 pos = 0;
+  U64 done = 0;
+  while (done == 0) {
+    U64 btype;
+    if ((bp >> 3) >= insize) {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 616;
+      } while (0);
+      return upng->error;
+    }
+    done = read_bit(&bp, &in[inpos]);
+    btype = read_bit(&bp, &in[inpos]) | (read_bit(&bp, &in[inpos]) << 1);
+    if (btype == 3) {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 626;
+      } while (0);
+      return upng->error;
+    } else if (btype == 0) {
+      inflate_uncompressed(upng, out, outsize, &in[inpos], &bp, &pos, insize);
+    } else {
+      inflate_huffman(upng, out, outsize, &in[inpos], &bp, &pos, insize, btype);
+    }
+    if (upng->error != UPNG_EOK) {
+      return upng->error;
+    }
+  }
+  return upng->error;
+}
+I64 uz_inflate(upng_t *upng, U8 *out, U64 outsize, U8 *in, U64 insize) {
+  if (insize < 2) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 647;
+    } while (0);
+    return upng->error;
+  }
+  if ((in[0] * 256 + in[1]) % 31 != 0) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 653;
+    } while (0);
+    return upng->error;
+  }
+  if ((in[0] & 15) != 8 || ((in[0] >> 4) & 15) > 7) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 659;
+    } while (0);
+    return upng->error;
+  }
+  if (((in[1] >> 5) & 1) != 0) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 665;
+    } while (0);
+    return upng->error;
+  }
+  uz_inflate_data(upng, out, outsize, in, insize, 2);
+  return upng->error;
+}
+I64 paeth_predictor(I64 a, I64 b, I64 c) {
+  I64 p = a + b - c;
+  I64 pa = cond((p > a), p - a, a - p);
+  I64 pb = cond((p > b), p - b, b - p);
+  I64 pc = cond((p > c), p - c, c - p);
+  if (pa <= pb && pa <= pc)
+    return a;
+  else if (pb <= pc)
+    return b;
+  else
+    return c;
+}
+U0 unfilter_scanline(upng_t *upng, U8 *recon, U8 *scanline, U8 *precon,
+                     U64 bytewidth, U8 filterType, U64 length) {
+  U64 i;
+  switch (filterType) {
+  case 0:
+    for (i = 0; i < length; i++)
+      recon[i] = scanline[i];
+    break;
+  case 1:
+    for (i = 0; i < bytewidth; i++)
+      recon[i] = scanline[i];
+    for (i = bytewidth; i < length; i++)
+      recon[i] = scanline[i] + recon[i - bytewidth];
+    break;
+  case 2:
+    if (precon)
+      for (i = 0; i < length; i++)
+        recon[i] = scanline[i] + precon[i];
+    else
+      for (i = 0; i < length; i++)
+        recon[i] = scanline[i];
+    break;
+  case 3:
+    if (precon) {
+      for (i = 0; i < bytewidth; i++)
+        recon[i] = scanline[i] + precon[i] / 2;
+      for (i = bytewidth; i < length; i++)
+        recon[i] = scanline[i] + ((recon[i - bytewidth] + precon[i]) / 2);
+    } else {
+      for (i = 0; i < bytewidth; i++)
+        recon[i] = scanline[i];
+      for (i = bytewidth; i < length; i++)
+        recon[i] = scanline[i] + recon[i - bytewidth] / 2;
+    }
+    break;
+  case 4:
+    if (precon) {
+      for (i = 0; i < bytewidth; i++)
+        recon[i] = (scanline[i] + paeth_predictor(0, precon[i], 0))(U8);
+      for (i = bytewidth; i < length; i++)
+        recon[i] =
+            (scanline[i] + paeth_predictor(recon[i - bytewidth], precon[i],
+                                           precon[i - bytewidth]))(U8);
+    } else {
+      for (i = 0; i < bytewidth; i++)
+        recon[i] = scanline[i];
+      for (i = bytewidth; i < length; i++)
+        recon[i] =
+            (scanline[i] + paeth_predictor(recon[i - bytewidth], 0, 0))(U8);
+    }
+    break;
+  default:
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 748;
+    } while (0);
+    break;
+  }
+}
+U0 unfilter(upng_t *upng, U8 *out, U8 *in, U64 w, U64 h, U64 bpp) {
+  U64 y;
+  U8 *prevline = 0;
+  U64 bytewidth = (bpp + 7) / 8;
+  U64 linebytes = (w * bpp + 7) / 8;
+  for (y = 0; y < h; y++) {
+    U64 outindex = linebytes * y;
+    U64 inindex = (1 + linebytes) * y;
+    U8 filterType = in[inindex];
+    unfilter_scanline(upng, &out[outindex], &in[inindex + 1], prevline,
+                      bytewidth, filterType, linebytes);
+    if (upng->error != UPNG_EOK) {
+      return;
+    }
+    prevline = &out[outindex];
+  }
+}
+U0 remove_padding_bits(U8 *out, U8 *in, U64 olinebits, U64 ilinebits, U64 h) {
+  U64 y;
+  U64 diff = ilinebits - olinebits;
+  U64 obp = 0, ibp = 0;
+  U8 bit;
+  for (y = 0; y < h; y++) {
+    U64 x;
+    for (x = 0; x < olinebits; x++) {
+      bit = ((in[(ibp) >> 3] >> (7 - ((ibp)&0x7))) & 1)(U8);
+      ibp++;
+      if (bit == 0)
+        out[(obp) >> 3] &= (~(1 << (7 - ((obp)&0x7))))(U8);
+      else
+        out[(obp) >> 3] |= (1 << (7 - ((obp)&0x7)));
+      ++obp;
+    }
+    ibp += diff;
+  }
+}
+U0 post_process_scanlines(upng_t *upng, U8 *out, U8 *in, upng_t *info_png) {
+  U64 bpp = upng_get_bpp(info_png);
+  U64 w = info_png->width;
+  U64 h = info_png->height;
+  if (bpp == 0) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 818;
+    } while (0);
+    return;
+  }
+  if (bpp < 8 && w * bpp != ((w * bpp + 7) / 8) * 8) {
+    unfilter(upng, in, in, w, h, bpp);
+    if (upng->error != UPNG_EOK) {
+      return;
+    }
+    remove_padding_bits(out, in, w * bpp, ((w * bpp + 7) / 8) * 8, h);
+  } else {
+    unfilter(upng, out, in, w, h, bpp);
+  }
+}
+I64 determine_format(upng_t *upng) {
+  switch (upng->color_type) {
+  case UPNG_LUM:
+    switch (upng->color_depth) {
+    case 1:
+      return UPNG_LUMINANCE1;
+    case 2:
+      return UPNG_LUMINANCE2;
+    case 4:
+      return UPNG_LUMINANCE4;
+    case 8:
+      return UPNG_LUMINANCE8;
+    default:
+      return UPNG_BADFORMAT;
+    }
+  case UPNG_RGB:
+    switch (upng->color_depth) {
+    case 8:
+      return UPNG_RGB8;
+    case 16:
+      return UPNG_RGB16;
+    default:
+      return UPNG_BADFORMAT;
+    }
+  case UPNG_LUMA:
+    switch (upng->color_depth) {
+    case 1:
+      return UPNG_LUMINANCE_ALPHA1;
+    case 2:
+      return UPNG_LUMINANCE_ALPHA2;
+    case 4:
+      return UPNG_LUMINANCE_ALPHA4;
+    case 8:
+      return UPNG_LUMINANCE_ALPHA8;
+    default:
+      return UPNG_BADFORMAT;
+    }
+  case UPNG_RGBA:
+    switch (upng->color_depth) {
+    case 8:
+      return UPNG_RGBA8;
+    case 16:
+      return UPNG_RGBA16;
+    default:
+      return UPNG_BADFORMAT;
+    }
+  default:
+    return UPNG_BADFORMAT;
+  }
+}
+U0 upng_free_source(upng_t *upng) {
+  if (upng->source.owning != 0) {
+    Free(upng->source.buffer);
+  }
+  upng->source.buffer = NULL;
+  upng->source.size = 0;
+  upng->source.owning = 0;
+}
+I64 upng_header(upng_t *upng) {
+  if (upng->error != UPNG_EOK) {
+    return upng->error;
+  }
+  if (upng->state != UPNG_NEW) {
+    return upng->error;
+  }
+  if (upng->source.size < 29) {
+    do {
+      (upng)->error = (UPNG_ENOTPNG);
+      (upng)->error_line = 912;
+    } while (0);
+    return upng->error;
+  }
+  if (upng->source.buffer[0] != 137 || upng->source.buffer[1] != 80 ||
+      upng->source.buffer[2] != 78 || upng->source.buffer[3] != 71 ||
+      upng->source.buffer[4] != 13 || upng->source.buffer[5] != 10 ||
+      upng->source.buffer[6] != 26 || upng->source.buffer[7] != 10) {
+    do {
+      (upng)->error = (UPNG_ENOTPNG);
+      (upng)->error_line = 918;
+    } while (0);
+    return upng->error;
+  }
+  if ((((((upng->source.buffer + 12)[0]) & 0xFF) << 24) |
+       ((((upng->source.buffer + 12)[1]) & 0xFF) << 16) |
+       ((((upng->source.buffer + 12)[2]) & 0xFF) << 8) |
+       (((upng->source.buffer + 12)[3]) & 0xFF)) !=
+      (((('I') & 0xFF) << 24) | ((('H') & 0xFF) << 16) | ((('D') & 0xFF) << 8) |
+       (('R') & 0xFF))) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 924;
+    } while (0);
+    return upng->error;
+  }
+  upng->width = (((((upng->source.buffer + 16)[0]) & 0xFF) << 24) |
+                 ((((upng->source.buffer + 16)[1]) & 0xFF) << 16) |
+                 ((((upng->source.buffer + 16)[2]) & 0xFF) << 8) |
+                 (((upng->source.buffer + 16)[3]) & 0xFF));
+  upng->height = (((((upng->source.buffer + 20)[0]) & 0xFF) << 24) |
+                  ((((upng->source.buffer + 20)[1]) & 0xFF) << 16) |
+                  ((((upng->source.buffer + 20)[2]) & 0xFF) << 8) |
+                  (((upng->source.buffer + 20)[3]) & 0xFF));
+  upng->color_depth = upng->source.buffer[24];
+  upng->color_type = upng->source.buffer[25](I32);
+  upng->format = determine_format(upng);
+  if (upng->format == UPNG_BADFORMAT) {
+    do {
+      (upng)->error = (UPNG_EUNFORMAT);
+      (upng)->error_line = 937;
+    } while (0);
+    return upng->error;
+  }
+  if (upng->source.buffer[26] != 0) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 943;
+    } while (0);
+    return upng->error;
+  }
+  if (upng->source.buffer[27] != 0) {
+    do {
+      (upng)->error = (UPNG_EMALFORMED);
+      (upng)->error_line = 949;
+    } while (0);
+    return upng->error;
+  }
+  if (upng->source.buffer[28] != 0) {
+    do {
+      (upng)->error = (UPNG_EUNINTERLACED);
+      (upng)->error_line = 955;
+    } while (0);
+    return upng->error;
+  }
+  upng->state = UPNG_HEADER;
+  return upng->error;
+}
+I64 upng_decode(upng_t *upng) {
+  U8 *chunk;
+  U8 *compressed;
+  U8 *inflated;
+  U64 compressed_size = 0, compressed_index = 0;
+  U64 inflated_size;
+  I64 error;
+  U64 length;
+  U8 *data;
+
+  if (upng->error != UPNG_EOK) {
+    return upng->error;
+  }
+  upng_header(upng);
+  if (upng->error != UPNG_EOK) {
+    return upng->error;
+  }
+  if (upng->state != UPNG_HEADER) {
+    return upng->error;
+  }
+  if (upng->buffer != 0) {
+    Free(upng->buffer);
+    upng->buffer = 0;
+    upng->size = 0;
+  }
+  chunk = upng->source.buffer + 33;
+  while (chunk < upng->source.buffer + upng->source.size) {
+    if ((chunk - upng->source.buffer + 12)(U64) > upng->source.size) {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 1007;
+      } while (0);
+      return upng->error;
+    }
+    length = (((((chunk)[0]) & 0xFF) << 24) | ((((chunk)[1]) & 0xFF) << 16) |
+              ((((chunk)[2]) & 0xFF) << 8) | (((chunk)[3]) & 0xFF));
+    if (length > 0x7fffffff) {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 1014;
+      } while (0);
+      return upng->error;
+    }
+    if ((chunk - upng->source.buffer + length + 12)(U64) > upng->source.size) {
+      do {
+        (upng)->error = (UPNG_EMALFORMED);
+        (upng)->error_line = 1020;
+      } while (0);
+      return upng->error;
+    }
+    data = chunk + 8;
+    if (((((((chunk) + 4)[0]) & 0xFF) << 24) |
+         (((((chunk) + 4)[1]) & 0xFF) << 16) |
+         (((((chunk) + 4)[2]) & 0xFF) << 8) | ((((chunk) + 4)[3]) & 0xFF)) ==
+        (((('I') & 0xFF) << 24) | ((('D') & 0xFF) << 16) |
+         ((('A') & 0xFF) << 8) | (('T') & 0xFF))) {
+      compressed_size += length;
+    } else if (((((((chunk) + 4)[0]) & 0xFF) << 24) |
+                (((((chunk) + 4)[1]) & 0xFF) << 16) |
+                (((((chunk) + 4)[2]) & 0xFF) << 8) |
+                ((((chunk) + 4)[3]) & 0xFF)) ==
+               (((('I') & 0xFF) << 24) | ((('E') & 0xFF) << 16) |
+                ((('N') & 0xFF) << 8) | (('D') & 0xFF))) {
+      break;
+    } else if ((((chunk)[4] & 32) == 0)) {
+      do {
+        (upng)->error = (UPNG_EUNSUPPORTED);
+        (upng)->error_line = 1033;
+      } while (0);
+      return upng->error;
+    }
+    chunk += (((((chunk)[0]) & 0xFF) << 24) | ((((chunk)[1]) & 0xFF) << 16) |
+              ((((chunk)[2]) & 0xFF) << 8) | (((chunk)[3]) & 0xFF)) +
+             12;
+  }
+  compressed = MAlloc(compressed_size)(U8 *);
+  if (compressed == NULL) {
+    do {
+      (upng)->error = (UPNG_ENOMEM);
+      (upng)->error_line = 1043;
+    } while (0);
+    return upng->error;
+  }
+  chunk = upng->source.buffer + 33;
+  while (chunk < upng->source.buffer + upng->source.size) {
+    length = (((((chunk)[0]) & 0xFF) << 24) | ((((chunk)[1]) & 0xFF) << 16) |
+              ((((chunk)[2]) & 0xFF) << 8) | (((chunk)[3]) & 0xFF));
+    data = chunk + 8;
+    if (((((((chunk) + 4)[0]) & 0xFF) << 24) |
+         (((((chunk) + 4)[1]) & 0xFF) << 16) |
+         (((((chunk) + 4)[2]) & 0xFF) << 8) | ((((chunk) + 4)[3]) & 0xFF)) ==
+        (((('I') & 0xFF) << 24) | ((('D') & 0xFF) << 16) |
+         ((('A') & 0xFF) << 8) | (('T') & 0xFF))) {
+      MemCopy(compressed + compressed_index, data, length);
+      compressed_index += length;
+    } else if (((((((chunk) + 4)[0]) & 0xFF) << 24) |
+                (((((chunk) + 4)[1]) & 0xFF) << 16) |
+                (((((chunk) + 4)[2]) & 0xFF) << 8) |
+                ((((chunk) + 4)[3]) & 0xFF)) ==
+               (((('I') & 0xFF) << 24) | ((('E') & 0xFF) << 16) |
+                ((('N') & 0xFF) << 8) | (('D') & 0xFF))) {
+      break;
+    }
+    chunk += (((((chunk)[0]) & 0xFF) << 24) | ((((chunk)[1]) & 0xFF) << 16) |
+              ((((chunk)[2]) & 0xFF) << 8) | (((chunk)[3]) & 0xFF)) +
+             12;
+  }
+  inflated_size =
+      ((upng->width * (upng->height * upng_get_bpp(upng) + 7)) / 8) +
+      upng->height;
+  inflated = MAlloc(inflated_size)(U8 *);
+  if (inflated == NULL) {
+    Free(compressed);
+    do {
+      (upng)->error = (UPNG_ENOMEM);
+      (upng)->error_line = 1073;
+    } while (0);
+    return upng->error;
+  }
+  error =
+      uz_inflate(upng, inflated, inflated_size, compressed, compressed_size);
+  if (error != UPNG_EOK) {
+    Free(compressed);
+    Free(inflated);
+    return upng->error;
+  }
+  Free(compressed);
+  upng->size = (upng->height * upng->width * upng_get_bpp(upng) + 7) / 8;
+  upng->buffer = MAlloc(upng->size)(U8 *);
+  if (upng->buffer == NULL) {
+    Free(inflated);
+    upng->size = 0;
+    do {
+      (upng)->error = (UPNG_ENOMEM);
+      (upng)->error_line = 1094;
+    } while (0);
+    return upng->error;
+  }
+  post_process_scanlines(upng, upng->buffer, inflated, upng);
+  Free(inflated);
+  if (upng->error != UPNG_EOK) {
+    Free(upng->buffer);
+    upng->buffer = NULL;
+    upng->size = 0;
+  } else {
+    upng->state = UPNG_DECODED;
+  }
+  upng_free_source(upng);
+  return upng->error;
+}
+upng_t *upng_new() {
+  upng_t *upng;
+  upng = MAlloc(sizeof(upng_t))(upng_t *);
+  if (upng == NULL) {
+    return NULL;
+  }
+  upng->buffer = NULL;
+  upng->size = 0;
+  upng->width = upng->height = 0;
+  upng->color_type = UPNG_RGBA;
+  upng->color_depth = 8;
+  upng->format = UPNG_RGBA8;
+  upng->state = UPNG_NEW;
+  upng->error = UPNG_EOK;
+  upng->error_line = 0;
+  upng->source.buffer = NULL;
+  upng->source.size = 0;
+  upng->source.owning = 0;
+  return upng;
+}
+upng_t *upng_new_from_bytes(U8 *buffer, U64 size) {
+  upng_t *upng = upng_new;
+  if (upng == NULL) {
+    return NULL;
+  }
+  upng->source.buffer = buffer;
+  upng->source.size = size;
+  upng->source.owning = 0;
+  return upng;
+}
+U0 upng_Free(upng_t *upng) {
+  if (upng->buffer != NULL) {
+    Free(upng->buffer);
+  }
+  upng_free_source(upng);
+  Free(upng);
+}
+upng_t *upng_new_from_file(U8 *filename) {
+  upng_t *upng = upng_new;
+  I64 size;
+  U8 *file = FileRead(filename, &size);
+  if (file == NULL) {
+    do {
+      (upng)->error = (UPNG_ENOTFOUND);
+      (upng)->error_line = 1174;
+    } while (0);
+    return upng;
+  }
+  upng_Free(upng);
+  upng = upng_new_from_bytes(file, size);
+  upng->source.owning = 1;
+  return upng;
+}
+
+I64 BMP24Color(CBGR24 *ptr, Bool dither_probability) {
+  I64 res, k;
+  if (dither_probability) {
+    k = RandU32;
+    if (SqrI64(ptr->r) + SqrI64(ptr->g) + SqrI64(ptr->b) >= 3 * SqrI64(k.u8[0]))
+      res = 8;
+    else
+      res = 0;
+    if (ptr->r >= k.u8[1])
+      res |= RED;
+    if (ptr->g >= k.u8[2])
+      res |= GREEN;
+    if (ptr->b >= k.u8[3])
+      res |= BLUE;
+  } else {
+    if (SqrI64(ptr->r) + SqrI64(ptr->g) + SqrI64(ptr->b) >= SqrI64(0x80)) {
+      res = 8;
+      if (ptr->r >= 0x80)
+        res |= RED;
+      if (ptr->g >= 0x80)
+        res |= GREEN;
+      if (ptr->b >= 0x80)
+        res |= BLUE;
+    } else {
+      res = 0;
+      if (ptr->r >= 0x40)
+        res |= RED;
+      if (ptr->g >= 0x40)
+        res |= GREEN;
+      if (ptr->b >= 0x40)
+        res |= BLUE;
+    }
+  }
+  return res;
+}
+
+CDC *PNGRead(U8 *filename) {
+  CBGR24 cbgr24;
+
+  upng_t *upng;
+  upng = upng_new_from_file(filename);
+
+  CDC *dc = NULL;
+  I64 i, j;
+  I64 w, h, bpp;
+  U8 *ptr;
+  U32 color = 0;
+
+  if (upng_decode(upng)) {
+    upng_Free(upng);
+    return dc;
+  }
+
+  w = upng_get_width(upng);
+  h = upng_get_height(upng);
+  bpp = upng_get_bpp(upng) / 8; // **BYTES** per pixel.
+
+  dc = DCNew(w, h);
+
+  switch (upng->format) {
+  case UPNG_RGBA8:
+  case UPNG_RGBA16:
+    DCFill(dc, 0);
+    // ctx->alpha_color = alpha_color;
+    // Fill2D(ctx, alpha_color); // Alpha channel.
+    break;
+  default:
+    DCFill(dc, 0);
+    // Fill2D(ctx);
+    break;
+  }
+
+  ptr = upng_get_buffer(upng);
+
+  for (i = 0; i < h; i++) {
+    for (j = 0; j < w; j++, ptr += bpp) {
+      switch (upng->format) {
+      case UPNG_RGBA8:
+        cbgr24.r = ptr[0];
+        cbgr24.g = ptr[1];
+        cbgr24.b = ptr[2];
+        dc->color = BMP24Color(&cbgr24, 0);
+        GrPlot(dc, j, i);
+        break;
+      case UPNG_RGBA16:
+        break;
+      case UPNG_RGB8:
+        cbgr24.r = ptr[0];
+        cbgr24.g = ptr[1];
+        cbgr24.b = ptr[2];
+        dc->color = BMP24Color(&cbgr24, 0);
+        GrPlot(dc, j, i);
+        break;
+      case UPNG_RGB16:
+        // TODO: 16bpp support.
+        break;
+      default:
+        break;
+      }
+    }
+  }
+  upng_Free(upng);
+  return dc;
+}
+
+Fs->put_doc = prevdoc;
+DocDel(tmpdoc);
