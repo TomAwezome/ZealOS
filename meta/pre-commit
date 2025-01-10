@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -e
+
+script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
+cd "${script_path}/.." || exit 1
+pwd | grep -q '.git' && cd ..
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
+
+FAILURES=0
+
+set +e
+
+echo "Running meta/check_code.sh"
+if time meta/check_code.sh "$@" && git diff --exit-code; then
+    echo -e "[${GREEN}GOOD${NC}]: meta/check_code.sh"
+else
+    echo -e "[${RED}FAIL${NC}]: meta/check_code.sh"
+    ((FAILURES+=1))
+fi
+
+exit "${FAILURES}"
